@@ -286,12 +286,23 @@ class TrayApp:
             else:
                 self._hibernate_agent()
                 self._set_status("idle")
-                logger.info(f"Nothing to contribute: {result.message}")
+                
+                if result.error:
+                    severity = result.error_severity.value.upper()
+                    logger.info(f"[{severity}] {result.message}: {result.error}")
+                    
+                    if result.error_severity.value == "critical" or result.error_severity.value == "high":
+                        self._notify("GitHub Agent ⚠️", f"{result.message}")
+                    elif result.error_severity.value == "low":
+                        logger.debug(f"Nothing to contribute: {result.message}")
+                else:
+                    logger.info(f"Nothing to contribute: {result.message}")
 
             self._maybe_cleanup_memory()
 
         except Exception as e:
             logger.error(f"Agent error: {e}", exc_info=True)
+            self._notify("GitHub Agent ❌", f"Error: {str(e)[:50]}")
             self._set_status("error")
             self._hibernate_agent()
 
@@ -310,13 +321,16 @@ class TrayApp:
 
         try:
             agent = self._get_agent()
-            success = agent.push_contribution(job.target, job.contribution)
+            success, error = agent.push_contribution(job.target, job.contribution)
+            
             if success:
                 msg = job.contribution.commit_message
                 logger.info(f"✅ Pushed: {msg}")
                 self._notify("GitHub Agent ✅", f"Pushed: {msg[:70]}")
             else:
-                logger.error("Push failed")
+                error_msg = str(error) if error else "Unknown error"
+                logger.error(f"Push failed: {error_msg}")
+                self._notify("GitHub Agent ❌", f"Push failed: {error_msg[:50]}")
                 self._notify("GitHub Agent ❌", "Push failed — check logs")
         except Exception as e:
             logger.error(f"Push error: {e}", exc_info=True)
