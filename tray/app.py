@@ -355,45 +355,62 @@ class DiffWindow:
 
         original_display = []
         improved_display = []
+        original_tags = []
+        improved_tags = []
 
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == "equal":
-                original_display.extend(original_lines[i1:i2])
-                improved_display.extend(improved_lines[j1:j2])
+                for line in original_lines[i1:i2]:
+                    original_display.append(line)
+                    original_tags.append("equal")
+                for line in improved_lines[j1:j2]:
+                    improved_display.append(line)
+                    improved_tags.append("equal")
             elif tag == "replace":
                 for line in original_lines[i1:i2]:
-                    if line.strip():
-                        original_display.append(line)
-                    else:
-                        original_display.append(line)
+                    original_display.append(line)
+                    original_tags.append("delete")
                 for line in improved_lines[j1:j2]:
-                    if line.strip():
-                        improved_display.append(line)
-                    else:
-                        improved_display.append(line)
+                    improved_display.append(line)
+                    improved_tags.append("add")
             elif tag == "delete":
                 for line in original_lines[i1:i2]:
-                    if line.strip():
-                        original_display.append(line)
+                    original_display.append(line)
+                    original_tags.append("delete")
             elif tag == "insert":
                 for line in improved_lines[j1:j2]:
-                    if line.strip():
-                        improved_display.append(line)
+                    improved_display.append(line)
+                    improved_tags.append("add")
 
-        for i, line in enumerate(original_display[:200]):
-            if line.strip():
-                original_text.insert("end", f"{i+1:4d} {line}")
-            else:
-                original_text.insert("end", "\n")
+        def tag_text(text_widget, lines, tags):
+            for i, line in enumerate(lines[:100]):
+                tag = tags[i] if i < len(tags) else "equal"
+                if tag == "delete":
+                    text_widget.insert("end", line, ("delete", f"line_{i}"))
+                elif tag == "add":
+                    text_widget.insert("end", line, ("add", f"line_{i}"))
+                else:
+                    text_widget.insert("end", line, ("equal", f"line_{i}"))
 
-        for i, line in enumerate(improved_display[:200]):
-            if line.strip():
-                improved_text.insert("end", f"{i+1:4d} {line}")
-            else:
-                improved_text.insert("end", "\n")
+        text_widget_original = original_text
+        text_widget_improved = improved_text
 
-        original_text.config(state="disabled")
-        improved_text.config(state="disabled")
+        text_widget_original.tag_configure("delete", background="#5c1a1a", foreground="#ffa198")
+        text_widget_original.tag_configure("add", background="#3d1f1f", foreground="#ffa198")
+        text_widget_original.tag_configure("equal", background="#1e1e1e", foreground="#9cdcfe")
+
+        text_widget_improved.tag_configure("delete", background="#3d1f1f", foreground="#7ee787")
+        text_widget_improved.tag_configure("add", background="#1c3a1c", foreground="#7ee787")
+        text_widget_improved.tag_configure("equal", background="#1e1e1e", foreground="#9cdcfe")
+
+        text_widget_original.delete("1.0", "end")
+        text_widget_improved.delete("1.0", "end")
+
+        tag_text(text_widget_original, original_display, original_tags)
+        tag_text(text_widget_improved, improved_display, improved_tags)
+
+        text_widget_original.config(state="disabled")
+        text_widget_improved.config(state="disabled")
 
         bf = tk.Frame(win, bg="#0d1117", padx=14, pady=10)
         bf.pack(fill="x")
