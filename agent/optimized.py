@@ -462,17 +462,23 @@ class HibernatingAgent:
         return repos, None
 
     def get_repo_files(
-        self, repo_name: str
+        self, repo_name: str, default_branch: str = "main"
     ) -> tuple[list[RepoFile], Optional[AgentError]]:
-        url = f"{GITHUB_API_BASE}/repos/{repo_name}/git/trees/main?recursive=1"
-        resp, error = self._get(url)
+        branches_to_try = [default_branch, "main", "master", "develop", "dev"]
+        branches_tried = set()
 
-        if error and error.severity == ErrorSeverity.HIGH and not error.retryable:
-            branch = "master"
+        for branch in branches_to_try:
+            if branch in branches_tried:
+                continue
+            branches_tried.add(branch)
+
             url = f"{GITHUB_API_BASE}/repos/{repo_name}/git/trees/{branch}?recursive=1"
             resp, error = self._get(url)
 
-        if error:
+            if resp and resp.status_code == 200:
+                break
+
+        if error or not resp or resp.status_code != 200:
             logger.error(f"Failed to fetch files for {repo_name}: {error}")
             return [], error
 
@@ -616,7 +622,7 @@ class HibernatingAgent:
         self, repos: list[Repository]
     ) -> tuple[Optional[ContributionTarget], Optional[AgentError]]:
         for repo in repos:
-            files, error = self.get_repo_files(repo.full_name)
+            files, error = self.get_repo_files(repo.full_name, repo.default_branch)
             if error:
                 logger.warning(f"Error fetching files for {repo.full_name}: {error}")
                 continue
