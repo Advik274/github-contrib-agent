@@ -57,11 +57,19 @@ def _remove_from_startup():
 
 
 class SettingsWindow:
-    def __init__(self, config: AgentConfig, on_save: Optional[callable] = None):
+    def __init__(
+        self,
+        config: AgentConfig,
+        on_save: Optional[callable] = None,
+        parent: Optional[tk.Tk] = None,
+    ):
         self.config = config
         self.config_manager = get_config_manager()
         self.on_save = on_save
-        self.root = tk.Tk()
+        if parent:
+            self.root = tk.Toplevel(parent)
+        else:
+            self.root = tk.Tk()
         self.root.title("GitHub Agent — Settings")
         self.root.geometry("480x420")
         self.root.resizable(False, False)
@@ -437,6 +445,10 @@ class SettingsWindow:
         self.root.mainloop()
 
 
-def open_settings(config: AgentConfig, on_save: Optional[callable] = None):
-    settings = SettingsWindow(config, on_save)
+def open_settings(
+    config: AgentConfig,
+    on_save: Optional[callable] = None,
+    parent: Optional[tk.Tk] = None,
+):
+    settings = SettingsWindow(config, on_save, parent)
     settings.show()

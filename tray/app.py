@@ -1,7 +1,9 @@
 import logging
 import os
+import queue
 import threading
 import time
+import tkinter as tk
 from pathlib import Path
 from typing import Optional
 
@@ -467,6 +469,10 @@ class TrayApp:
         self._agent: Optional[GitHubAgent] = None
         self._scheduler_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
+        self._action_queue: queue.Queue = queue.Queue()
+        self._root = tk.Tk()
+        self._root.withdraw()
+        self._root.after(100, self._process_actions)
 
     def _set_status(self, status: str):
         self._status = status
@@ -475,6 +481,15 @@ class TrayApp:
             self.icon.icon = create_tray_icon(color)
             tooltip = self._get_tooltip()
             self.icon.title = tooltip
+
+    def _process_actions(self):
+        try:
+            while True:
+                action = self._action_queue.get_nowait()
+                action()
+        except queue.Empty:
+            pass
+        self._root.after(100, self._process_actions)
 
     def _get_tooltip(self) -> str:
         status_texts = {
@@ -597,13 +612,16 @@ class TrayApp:
         os.startfile(str(log_path))
 
     def _menu_settings(self, icon, item):
-        from tray.settings_window import open_settings
+        def open_settings_action():
+            from tray.settings_window import open_settings
 
-        def on_save(new_config):
-            self.config = new_config
-            self.veto_seconds = new_config.veto_seconds
+            def on_save(new_config):
+                self.config = new_config
+                self.veto_seconds = new_config.veto_seconds
 
-        open_settings(self.config, on_save)
+            open_settings(self.config, on_save, self._root)
+
+        self._root.after(0, open_settings_action)
 
     def _menu_quit(self, icon, item):
         logger.info("Agent shutting down...")
@@ -632,4 +650,5 @@ class TrayApp:
         logger.info(
             f"Started. Veto: {self.veto_seconds}s. Interval: {getattr(self.config, 'interval_hours', 4)}h."
         )
-        self.icon.run()
+        self._pystray_thread = threading.Thread(target=self.icon.run, daemon=True)
+        self._pystray_thread.start()

@@ -76,3 +76,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    if _tray_app:
+        _tray_app._root.mainloop()
