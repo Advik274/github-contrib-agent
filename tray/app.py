@@ -64,7 +64,7 @@ class ToastWindow:
         self._root = tk.Tk()
         self._root.withdraw()
         self._root.attributes("-alpha", 0)
-        
+
         self.root = tk.Toplevel(self._root)
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
@@ -395,13 +395,25 @@ class DiffWindow:
         text_widget_original = original_text
         text_widget_improved = improved_text
 
-        text_widget_original.tag_configure("delete", background="#5c1a1a", foreground="#ffa198")
-        text_widget_original.tag_configure("add", background="#3d1f1f", foreground="#ffa198")
-        text_widget_original.tag_configure("equal", background="#1e1e1e", foreground="#9cdcfe")
+        text_widget_original.tag_configure(
+            "delete", background="#5c1a1a", foreground="#ffa198"
+        )
+        text_widget_original.tag_configure(
+            "add", background="#3d1f1f", foreground="#ffa198"
+        )
+        text_widget_original.tag_configure(
+            "equal", background="#1e1e1e", foreground="#9cdcfe"
+        )
 
-        text_widget_improved.tag_configure("delete", background="#3d1f1f", foreground="#7ee787")
-        text_widget_improved.tag_configure("add", background="#1c3a1c", foreground="#7ee787")
-        text_widget_improved.tag_configure("equal", background="#1e1e1e", foreground="#9cdcfe")
+        text_widget_improved.tag_configure(
+            "delete", background="#3d1f1f", foreground="#7ee787"
+        )
+        text_widget_improved.tag_configure(
+            "add", background="#1c3a1c", foreground="#7ee787"
+        )
+        text_widget_improved.tag_configure(
+            "equal", background="#1e1e1e", foreground="#9cdcfe"
+        )
 
         text_widget_original.delete("1.0", "end")
         text_widget_improved.delete("1.0", "end")
