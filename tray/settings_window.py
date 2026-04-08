@@ -1,4 +1,6 @@
 import logging
+import os
+import sys
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Optional
@@ -7,6 +9,47 @@ from agent.config import AgentConfig, ConfigManager, get_config_manager
 from agent.constants import DEFAULT_INTERVAL_HOURS, DEFAULT_VETO_SECONDS, MAX_VETO_SECONDS, MIN_VETO_SECONDS
 
 logger = logging.getLogger(__name__)
+
+STARTUP_FILENAME = "GitHub Agent Agent.bat"
+STARTUP_FOLDER = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+
+
+def _get_agent_bat_path() -> str:
+    return os.path.join(STARTUP_FOLDER, STARTUP_FILENAME)
+
+
+def _is_agent_in_startup() -> bool:
+    return os.path.exists(_get_agent_bat_path())
+
+
+def _add_to_startup():
+    try:
+        bat_path = _get_agent_bat_path()
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        python_exe = sys.executable
+        main_py = os.path.join(script_dir, "main.py")
+        batch_content = f'@echo off\ncd /d "{script_dir}"\nstart "" "{python_exe}" "{main_py}"\n'
+        
+        with open(bat_path, "w") as f:
+            f.write(batch_content)
+        
+        logger.info(f"Added agent to Windows startup: {bat_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to add to startup: {e}")
+        return False
+
+
+def _remove_from_startup():
+    try:
+        bat_path = _get_agent_bat_path()
+        if os.path.exists(bat_path):
+            os.remove(bat_path)
+            logger.info("Removed agent from Windows startup")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to remove from startup: {e}")
+        return False
 
 
 class SettingsWindow:
@@ -204,7 +247,7 @@ class SettingsWindow:
         self.interval_var.set(self.config.interval_hours)
         self.veto_var.set(self.config.veto_seconds)
         self.notifications_var.set(self.config.show_notifications)
-        self.startup_var.set(self.config.auto_run_on_startup)
+        self.startup_var.set(_is_agent_in_startup())
         self._on_interval_change(None)
         self._on_veto_change(None)
 
@@ -266,6 +309,16 @@ class SettingsWindow:
         )
 
         try:
+            startup_wanted = self.startup_var.get()
+            startup_current = _is_agent_in_startup()
+
+            if startup_wanted and not startup_current:
+                if not _add_to_startup():
+                    messagebox.showerror("Startup Error", "Failed to add agent to Windows startup")
+                    return
+            elif not startup_wanted and startup_current:
+                _remove_from_startup()
+
             self.config_manager.save(new_config)
             logger.info("Settings saved successfully")
 
