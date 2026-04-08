@@ -229,7 +229,7 @@ class DiffWindow:
         tk.Button(bf, text="✅  Approve now",
                   font=("Segoe UI", 9, "bold"), bg="#238636", fg="white",
                   relief="flat", padx=12, pady=6, cursor="hand2",
-                  command=lambda: [win.destroy(), on_approve(None)],
+                  command=lambda: [win.destroy(), on_approve()],
                   activebackground="#2ea043", bd=0).pack(side="left")
         tk.Button(bf, text="✕  Reject",
                   font=("Segoe UI", 9), bg="#b91c1c", fg="white",

@@ -61,10 +61,12 @@ The agent will:
 
 ### GitHub Personal Access Token
 
+> **Important**: Use a **Classic PAT** (not Fine-Grained). Fine-Grained PATs do not support the Contents API required for pushing commits.
+
 1. Go to [github.com/settings/tokens](https://github.com/settings/tokens)
-2. Click **"Generate new token (classic)"**
+2. Click **"Generate new token (classic)"** — not "Generate new token"
 3. Give it a name (e.g., `contribution-agent`)
-4. Check the **`repo`** scope
+4. Check the **`repo`** scope (full control of repositories)
 5. Copy and save the token securely
 
 ### Mistral API Key

@@ -5,7 +5,7 @@
   "interval_hours": 4,
   "veto_seconds": 300,
   "_notes": {
-    "github_token": "Create at https://github.com/settings/tokens — needs 'repo' scope",
+    "github_token": "MUST be a Classic PAT (not Fine-Grained). Create at https://github.com/settings/tokens — needs 'repo' scope",
     "mistral_api_key": "Get from https://console.mistral.ai/api-keys",
     "interval_hours": "How often the agent runs automatically (default: every 4 hours)",
     "veto_seconds": "How long the toast stays before auto-pushing. 300=5min, 60=1min, 3600=1hr"
