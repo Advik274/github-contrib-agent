@@ -50,6 +50,7 @@ class ToastWindow:
                     "name": job.target.repo.name,
                 },
                 "file": {"path": job.target.file.path, "name": job.target.file.name},
+                "original_content": job.target.content,
             },
             "contribution": {
                 "commit_message": job.contribution.commit_message,
@@ -221,15 +222,18 @@ class ToastWindow:
 
 class DiffWindow:
     def __init__(self, job: dict, on_approve, on_reject):
+        import difflib
         import tkinter as tk
         from tkinter import scrolledtext
 
         contribution = job["contribution"]
         target = job["target"]
+        original_content = job["target"].get("original_content", "")
+        improved_content = contribution["improved_code"]
 
         win = tk.Toplevel()
         win.title("GitHub Agent — Review Diff")
-        win.geometry("660x520")
+        win.geometry("900x650")
         win.attributes("-topmost", True)
         win.configure(bg="#0d1117")
 
@@ -254,7 +258,7 @@ class DiffWindow:
         cf.pack(fill="x")
         tk.Label(
             cf,
-            text="Commit message",
+            text="Commit message:",
             font=("Segoe UI", 8, "bold"),
             bg="#0d1117",
             fg="#8b949e",
@@ -262,50 +266,129 @@ class DiffWindow:
         tk.Label(
             cf,
             text=contribution["commit_message"],
-            font=("Consolas", 10),
+            font=("Segoe UI", 10),
             bg="#161b22",
             fg="#79c0ff",
             padx=8,
-            pady=5,
-            wraplength=610,
+            pady=4,
+            wraplength=860,
             anchor="w",
             justify="left",
         ).pack(fill="x", pady=(2, 0))
 
+        desc_frame = tk.Frame(win, bg="#0d1117", padx=14, pady=4)
+        desc_frame.pack(fill="x")
         tk.Label(
-            win,
-            text=contribution["description"],
-            font=("Segoe UI", 10),
+            desc_frame,
+            text=f"Change: {contribution['description']}",
+            font=("Segoe UI", 9),
             bg="#0d1117",
-            fg="#e6edf3",
-            wraplength=620,
+            fg="#7ee787",
+            wraplength=860,
             anchor="w",
-            justify="left",
-            padx=14,
-            pady=4,
         ).pack(fill="x")
 
-        cdf = tk.Frame(win, bg="#0d1117", padx=14, pady=6)
-        cdf.pack(fill="both", expand=True)
+        diff_frame = tk.Frame(win, bg="#0d1117", padx=14, pady=6)
+        diff_frame.pack(fill="both", expand=True)
+
+        header_frame = tk.Frame(diff_frame, bg="#21262d")
+        header_frame.pack(fill="x")
+
         tk.Label(
-            cdf,
-            text="Improved file preview",
+            header_frame,
+            text="- Original",
             font=("Segoe UI", 8, "bold"),
-            bg="#0d1117",
-            fg="#8b949e",
-        ).pack(anchor="w")
-        txt = scrolledtext.ScrolledText(
-            cdf,
+            bg="#f85149",
+            fg="white",
+            padx=8,
+            pady=2,
+        ).pack(side="left", padx=(0, 20))
+
+        tk.Label(
+            header_frame,
+            text="+ Improved",
+            font=("Segoe UI", 8, "bold"),
+            bg="#238636",
+            fg="white",
+            padx=8,
+            pady=2,
+        ).pack(side="left")
+
+        text_frame = tk.Frame(diff_frame, bg="#0d1117")
+        text_frame.pack(fill="both", expand=True, pady=(4, 0))
+
+        original_text = scrolledtext.ScrolledText(
+            text_frame,
             font=("Consolas", 9),
-            bg="#161b22",
-            fg="#e6edf3",
+            bg="#3d1f1f",
+            fg="#ffa198",
             insertbackground="white",
-            height=14,
+            height=20,
             wrap="none",
+            relief="flat",
+            bd=0,
         )
-        txt.insert("1.0", contribution["improved_code"][:5000])
-        txt.config(state="disabled")
-        txt.pack(fill="both", expand=True, pady=(3, 0))
+        original_text.pack(side="left", fill="both", expand=True)
+
+        improved_text = scrolledtext.ScrolledText(
+            text_frame,
+            font=("Consolas", 9),
+            bg="#1f3d1f",
+            fg="#7ee787",
+            insertbackground="white",
+            height=20,
+            wrap="none",
+            relief="flat",
+            bd=0,
+        )
+        improved_text.pack(side="left", fill="both", expand=True, padx=(4, 0))
+
+        original_lines = original_content.splitlines(keepends=True)
+        improved_lines = improved_content.splitlines(keepends=True)
+
+        matcher = difflib.SequenceMatcher(None, original_lines, improved_lines)
+
+        original_display = []
+        improved_display = []
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                original_display.extend(original_lines[i1:i2])
+                improved_display.extend(improved_lines[j1:j2])
+            elif tag == "replace":
+                for line in original_lines[i1:i2]:
+                    if line.strip():
+                        original_display.append(line)
+                    else:
+                        original_display.append(line)
+                for line in improved_lines[j1:j2]:
+                    if line.strip():
+                        improved_display.append(line)
+                    else:
+                        improved_display.append(line)
+            elif tag == "delete":
+                for line in original_lines[i1:i2]:
+                    if line.strip():
+                        original_display.append(line)
+            elif tag == "insert":
+                for line in improved_lines[j1:j2]:
+                    if line.strip():
+                        improved_display.append(line)
+
+        for i, line in enumerate(original_display[:200]):
+            if line.strip():
+                original_text.insert("end", f"{i+1:4d} {line}")
+            else:
+                original_text.insert("end", "\n")
+
+        for i, line in enumerate(improved_display[:200]):
+            if line.strip():
+                improved_text.insert("end", f"{i+1:4d} {line}")
+            else:
+                improved_text.insert("end", "\n")
+
+        original_text.config(state="disabled")
+        improved_text.config(state="disabled")
 
         bf = tk.Frame(win, bg="#0d1117", padx=14, pady=10)
         bf.pack(fill="x")
