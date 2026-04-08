@@ -1,8 +1,8 @@
 import json
 import logging
 import tkinter as tk
-from tkinter import messagebox
 from pathlib import Path
+from tkinter import messagebox
 
 from agent.config import AgentConfig, ConfigManager
 from agent.constants import CONFIG_DIR
@@ -445,8 +445,8 @@ class OnboardingWizard:
 
             self.root.destroy()
 
-            from tray.app import TrayApp
             from agent.config import load_config
+            from tray.app import TrayApp
 
             config = load_config()
             app = TrayApp(config)

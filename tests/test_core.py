@@ -10,8 +10,8 @@ from agent.core import (
     ContributionJob,
     ContributionTarget,
     GitHubAgent,
-    Repository,
     RepoFile,
+    Repository,
 )
 
 
