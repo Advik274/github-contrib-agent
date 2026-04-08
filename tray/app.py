@@ -435,6 +435,10 @@ class TrayApp:
         toast.show()
 
     def _on_auto_approve(self, job: ContributionJob):
+        if self._status == "pushing":
+            logger.warning("Push already in progress, ignoring duplicate call")
+            return
+
         self._set_status("pushing")
         logger.info("Auto-pushing contribution...")
 
@@ -445,12 +449,11 @@ class TrayApp:
             if success:
                 msg = job.contribution.commit_message
                 logger.info(f"✅ Pushed: {msg}")
-                self._notify("GitHub Agent ✅", f"Pushed: {msg[:70]}")
+                self._notify("GitHub Agent ✅", f"Pushed: {msg[:50]}...")
             else:
                 error_msg = str(error) if error else "Unknown error"
                 logger.error(f"Push failed: {error_msg}")
-                self._notify("GitHub Agent ❌", f"Push failed: {error_msg[:50]}")
-                self._notify("GitHub Agent ❌", "Push failed — check logs")
+                self._notify("GitHub Agent ❌", "Push failed - check logs")
         except Exception as e:
             logger.error(f"Push error: {e}", exc_info=True)
         finally:
