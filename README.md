@@ -221,5 +221,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Made with ❤️ for developers who want to keep their contribution streak alive
+  Made with ❤️ by Arnav for developers who want to keep their contribution streak alive
 </p>
