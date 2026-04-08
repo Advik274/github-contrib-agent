@@ -431,14 +431,14 @@ Return ONLY valid JSON, no markdown fences."""
 
     def push_contribution(
         self, target: ContributionTarget, contribution: Contribution
-    ) -> bool:
+    ) -> tuple[bool, Optional[str]]:
         repo_name = target.repo.full_name
         file_path = target.file.path
         sha = self.get_file_sha(repo_name, file_path)
 
         if not sha:
             logger.error("Could not get file SHA")
-            return False
+            return False, "Could not get file SHA"
 
         encoded = base64.b64encode(contribution.improved_code.encode("utf-8")).decode(
             "utf-8"
@@ -456,13 +456,13 @@ Return ONLY valid JSON, no markdown fences."""
         if resp is not None and resp.status_code in (200, 201):
             logger.info(f"Pushed: {contribution.commit_message}")
             self._mark_processed(repo_name, file_path)
-            return True
+            return True, None
 
         error_msg = getattr(resp, "text", "no response") if resp else "no response"
         logger.error(
             f"Push failed: {getattr(resp, 'status_code', 'no response')} - {error_msg}"
         )
-        return False
+        return False, error_msg
 
     def validate_credentials(self) -> tuple[bool, str]:
         url = f"{GITHUB_API_BASE}/user"
