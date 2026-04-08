@@ -1,6 +1,13 @@
 from .config import AgentConfig, ConfigManager, get_config_manager, load_config
 from .constants import *
-from .core import AgentResult, Contribution, ContributionJob, ContributionTarget, GitHubAgent, Repository
+from .core import (
+    AgentResult,
+    Contribution,
+    ContributionJob,
+    ContributionTarget,
+    GitHubAgent,
+    Repository,
+)
 
 __all__ = [
     "AgentConfig",

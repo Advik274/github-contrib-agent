@@ -21,11 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 class AgentConfig(BaseModel):
-    github_token: str = Field(..., min_length=1, description="GitHub Personal Access Token")
+    github_token: str = Field(
+        ..., min_length=1, description="GitHub Personal Access Token"
+    )
     mistral_api_key: str = Field(..., min_length=1, description="Mistral API Key")
     github_username: str = Field(..., min_length=1, description="GitHub username")
     interval_hours: int = Field(default=DEFAULT_INTERVAL_HOURS, ge=1, le=168)
-    veto_seconds: int = Field(default=DEFAULT_VETO_SECONDS, ge=MIN_VETO_SECONDS, le=MAX_VETO_SECONDS)
+    veto_seconds: int = Field(
+        default=DEFAULT_VETO_SECONDS, ge=MIN_VETO_SECONDS, le=MAX_VETO_SECONDS
+    )
     max_api_calls: int = Field(default=30, ge=1, le=100)
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR)$")
     auto_run_on_startup: bool = Field(default=True)
@@ -40,7 +44,9 @@ class AgentConfig(BaseModel):
     @classmethod
     def validate_github_token(cls, v: str) -> str:
         if not v.startswith(("ghp_", "github_pat_")):
-            logger.warning("GitHub token doesn't look like a standard format (ghp_... or github_pat_...)")
+            logger.warning(
+                "GitHub token doesn't look like a standard format (ghp_... or github_pat_...)"
+            )
         return v
 
 

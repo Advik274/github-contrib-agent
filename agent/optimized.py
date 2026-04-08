@@ -116,9 +116,16 @@ class AuthenticationError(AgentError):
 
 
 class RateLimitError(AgentError):
-    def __init__(self, message: str, reset_time: Optional[int] = None, details: Optional[str] = None):
+    def __init__(
+        self,
+        message: str,
+        reset_time: Optional[int] = None,
+        details: Optional[str] = None,
+    ):
         wait_time = max(0, reset_time - int(time.time())) if reset_time else None
-        details = details or (f"Retry after {wait_time}s" if wait_time else "Unknown reset time")
+        details = details or (
+            f"Retry after {wait_time}s" if wait_time else "Unknown reset time"
+        )
         super().__init__(message, ErrorSeverity.MEDIUM, retryable=True, details=details)
         self.reset_time = reset_time
 
@@ -129,7 +136,7 @@ class APIError(AgentError):
             message,
             ErrorSeverity.HIGH if status_code >= 500 else ErrorSeverity.MEDIUM,
             retryable=status_code >= 500,
-            details=details
+            details=details,
         )
         self.status_code = status_code
 
@@ -162,12 +169,14 @@ ERROR_MESSAGES = {
 
 def _make_session(token: str, username: str) -> requests.Session:
     session = requests.Session()
-    session.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Accept": GITHUB_MEDIA_TYPE,
-        "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        "User-Agent": f"github-contrib-agent/{username}",
-    })
+    session.headers.update(
+        {
+            "Authorization": f"Bearer {token}",
+            "Accept": GITHUB_MEDIA_TYPE,
+            "X-GitHub-Api-Version": GITHUB_API_VERSION,
+            "User-Agent": f"github-contrib-agent/{username}",
+        }
+    )
 
     retry = Retry(
         total=MAX_RETRIES,
@@ -189,7 +198,11 @@ class HibernatingAgent:
         self.github_token = config.github_token
         self.mistral_api_key = config.mistral_api_key
         self.github_username = config.github_username
-        self._max_calls = config.max_api_calls if hasattr(config, 'max_api_calls') else MAX_API_CALLS_PER_RUN
+        self._max_calls = (
+            config.max_api_calls
+            if hasattr(config, "max_api_calls")
+            else MAX_API_CALLS_PER_RUN
+        )
 
         self._session: Optional[requests.Session] = None
         self._mistral: Optional[Mistral] = None
@@ -232,17 +245,23 @@ class HibernatingAgent:
 
             if remaining < 15:
                 wait = max(0, reset_time - int(time.time())) + 5
-                logger.warning(f"Rate limit warning ({remaining}). Consider waiting {wait}s...")
-                
+                logger.warning(
+                    f"Rate limit warning ({remaining}). Consider waiting {wait}s..."
+                )
+
         return None
 
-    def _handle_error_response(self, resp: requests.Response, context: str) -> AgentError:
+    def _handle_error_response(
+        self, resp: requests.Response, context: str
+    ) -> AgentError:
         status_code = resp.status_code
         msg, retryable = ERROR_MESSAGES.get(status_code, ("Unknown error", True))
-        
+
         try:
             error_data = resp.json()
-            details = error_data.get("message", error_data.get("error", resp.text[:200]))
+            details = error_data.get(
+                "message", error_data.get("error", resp.text[:200])
+            )
         except (json.JSONDecodeError, ValueError):
             details = resp.text[:200] if resp.text else "No response body"
 
@@ -250,26 +269,18 @@ class HibernatingAgent:
             if "resource not accessible" in details.lower():
                 return AuthenticationError(
                     "Classic PAT required for Contents API",
-                    f"Fine-grained PATs don't support this operation. Details: {details}"
+                    f"Fine-grained PATs don't support this operation. Details: {details}",
                 )
-            return AuthenticationError(
-                f"Access denied: {msg}",
-                details
-            )
+            return AuthenticationError(f"Access denied: {msg}", details)
 
         if status_code == 401:
-            return AuthenticationError(
-                "GitHub token is invalid or expired",
-                details
-            )
+            return AuthenticationError("GitHub token is invalid or expired", details)
 
-        return APIError(
-            status_code,
-            f"{context}: {msg}",
-            details
-        )
+        return APIError(status_code, f"{context}: {msg}", details)
 
-    def _validate_json_response(self, resp: requests.Response, expected_keys: list[str]) -> Optional[dict]:
+    def _validate_json_response(
+        self, resp: requests.Response, expected_keys: list[str]
+    ) -> Optional[dict]:
         try:
             data = resp.json()
             if not isinstance(data, dict):
@@ -286,10 +297,14 @@ class HibernatingAgent:
             logger.error(f"Invalid JSON response: {e}")
             return None
 
-    def _get(self, url: str, **kwargs) -> tuple[Optional[requests.Response], Optional[AgentError]]:
+    def _get(
+        self, url: str, **kwargs
+    ) -> tuple[Optional[requests.Response], Optional[AgentError]]:
         if self._api_calls >= self._max_calls:
             logger.warning("API call budget exhausted for this run")
-            return None, AgentError("API call budget exhausted", ErrorSeverity.MEDIUM, retryable=True)
+            return None, AgentError(
+                "API call budget exhausted", ErrorSeverity.MEDIUM, retryable=True
+            )
 
         try:
             session = self._ensure_session()
@@ -324,12 +339,19 @@ class HibernatingAgent:
             return None, error
 
         except Exception as e:
-            error = AgentError(f"Unexpected error: {e}", ErrorSeverity.HIGH, retryable=True, details=str(e))
+            error = AgentError(
+                f"Unexpected error: {e}",
+                ErrorSeverity.HIGH,
+                retryable=True,
+                details=str(e),
+            )
             self._last_error = error
             logger.exception("Unexpected error in _get")
             return None, error
 
-    def _put(self, url: str, **kwargs) -> tuple[Optional[requests.Response], Optional[AgentError]]:
+    def _put(
+        self, url: str, **kwargs
+    ) -> tuple[Optional[requests.Response], Optional[AgentError]]:
         try:
             session = self._ensure_session()
             resp = session.put(url, timeout=REQUEST_TIMEOUT, **kwargs)
@@ -357,7 +379,12 @@ class HibernatingAgent:
             return None, error
 
         except Exception as e:
-            error = AgentError(f"Unexpected PUT error: {e}", ErrorSeverity.HIGH, retryable=True, details=str(e))
+            error = AgentError(
+                f"Unexpected PUT error: {e}",
+                ErrorSeverity.HIGH,
+                retryable=True,
+                details=str(e),
+            )
             self._last_error = error
             logger.exception("Unexpected error in _put")
             return None, error
@@ -371,7 +398,9 @@ class HibernatingAgent:
             return [], error
 
         if resp is None:
-            return [], AgentError("No response from GitHub", ErrorSeverity.HIGH, retryable=True)
+            return [], AgentError(
+                "No response from GitHub", ErrorSeverity.HIGH, retryable=True
+            )
 
         if resp.status_code != 200:
             error = self._handle_error_response(resp, "Failed to fetch repos")
@@ -387,14 +416,16 @@ class HibernatingAgent:
                 continue
 
             try:
-                repos.append(Repository(
-                    full_name=r.get("full_name", ""),
-                    name=r.get("name", ""),
-                    default_branch=r.get("default_branch", "main"),
-                    description=r.get("description"),
-                    language=r.get("language"),
-                    topics=r.get("topics", []) or [],
-                ))
+                repos.append(
+                    Repository(
+                        full_name=r.get("full_name", ""),
+                        name=r.get("name", ""),
+                        default_branch=r.get("default_branch", "main"),
+                        description=r.get("description"),
+                        language=r.get("language"),
+                        topics=r.get("topics", []) or [],
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to parse repo: {e}")
                 continue
@@ -402,7 +433,9 @@ class HibernatingAgent:
         logger.info(f"Found {len(repos)} owned repos")
         return repos, None
 
-    def get_repo_files(self, repo_name: str) -> tuple[list[RepoFile], Optional[AgentError]]:
+    def get_repo_files(
+        self, repo_name: str
+    ) -> tuple[list[RepoFile], Optional[AgentError]]:
         url = f"{GITHUB_API_BASE}/repos/{repo_name}/git/trees/main?recursive=1"
         resp, error = self._get(url)
 
@@ -416,11 +449,17 @@ class HibernatingAgent:
             return [], error
 
         if resp is None or resp.status_code != 200:
-            return [], AgentError(f"Could not fetch files for {repo_name}", ErrorSeverity.MEDIUM, retryable=True)
+            return [], AgentError(
+                f"Could not fetch files for {repo_name}",
+                ErrorSeverity.MEDIUM,
+                retryable=True,
+            )
 
         data = resp.json()
         if not isinstance(data, dict) or "tree" not in data:
-            return [], ValidationError("Invalid tree response", f"Response: {str(data)[:100]}")
+            return [], ValidationError(
+                "Invalid tree response", f"Response: {str(data)[:100]}"
+            )
 
         files = []
         for item in data.get("tree", []):
@@ -442,20 +481,35 @@ class HibernatingAgent:
             if item.get("size", 0) > MAX_FILE_CONTENT_LENGTH:
                 continue
 
-            skip_patterns = ["node_modules", ".git", "__pycache__", "venv", ".venv", "dist", "build", ".venv", "env", "egg-info"]
+            skip_patterns = [
+                "node_modules",
+                ".git",
+                "__pycache__",
+                "venv",
+                ".venv",
+                "dist",
+                "build",
+                ".venv",
+                "env",
+                "egg-info",
+            ]
             if any(skip in path.lower() for skip in skip_patterns):
                 continue
 
-            files.append(RepoFile(
-                name=Path(path).name,
-                path=path,
-                sha=item.get("sha"),
-                size=item.get("size", 0),
-            ))
+            files.append(
+                RepoFile(
+                    name=Path(path).name,
+                    path=path,
+                    sha=item.get("sha"),
+                    size=item.get("size", 0),
+                )
+            )
 
         return files, None
 
-    def get_file_content(self, repo_name: str, file_path: str) -> tuple[Optional[str], Optional[AgentError]]:
+    def get_file_content(
+        self, repo_name: str, file_path: str
+    ) -> tuple[Optional[str], Optional[AgentError]]:
         url = f"{GITHUB_API_BASE}/repos/{repo_name}/contents/{file_path}"
         resp, error = self._get(url)
 
@@ -470,15 +524,21 @@ class HibernatingAgent:
             return None, ValidationError("Invalid content response")
 
         if "content" not in data:
-            return None, ContentError("No content in response", f"Keys: {list(data.keys())}")
+            return None, ContentError(
+                "No content in response", f"Keys: {list(data.keys())}"
+            )
 
         try:
-            content = base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+            content = base64.b64decode(data["content"]).decode(
+                "utf-8", errors="replace"
+            )
             return content, None
         except Exception as e:
             return None, ContentError(f"Failed to decode content: {e}")
 
-    def get_file_sha(self, repo_name: str, file_path: str) -> tuple[Optional[str], Optional[AgentError]]:
+    def get_file_sha(
+        self, repo_name: str, file_path: str
+    ) -> tuple[Optional[str], Optional[AgentError]]:
         url = f"{GITHUB_API_BASE}/repos/{repo_name}/contents/{file_path}"
         resp, error = self._get(url)
 
@@ -524,7 +584,9 @@ class HibernatingAgent:
 
         return "Unknown"
 
-    def pick_contribution_target(self, repos: list[Repository]) -> tuple[Optional[ContributionTarget], Optional[AgentError]]:
+    def pick_contribution_target(
+        self, repos: list[Repository]
+    ) -> tuple[Optional[ContributionTarget], Optional[AgentError]]:
         for repo in repos:
             files, error = self.get_repo_files(repo.full_name)
             if error:
@@ -545,13 +607,23 @@ class HibernatingAgent:
 
                 file.language = self._detect_language(file.path, content)
 
-                if file.language in ["Python", "JavaScript", "TypeScript", "Java", "Markdown", "Text"]:
-                    return ContributionTarget(
-                        repo=repo,
-                        file=file,
-                        content=content,
-                        language=file.language,
-                    ), None
+                if file.language in [
+                    "Python",
+                    "JavaScript",
+                    "TypeScript",
+                    "Java",
+                    "Markdown",
+                    "Text",
+                ]:
+                    return (
+                        ContributionTarget(
+                            repo=repo,
+                            file=file,
+                            content=content,
+                            language=file.language,
+                        ),
+                        None,
+                    )
 
         return None, None
 
@@ -582,12 +654,14 @@ Rules:
 - Return ONLY the JSON, no additional text
 """
 
-    def generate_contribution(self, target: ContributionTarget) -> tuple[Optional[Contribution], Optional[AgentError]]:
+    def generate_contribution(
+        self, target: ContributionTarget
+    ) -> tuple[Optional[Contribution], Optional[AgentError]]:
         prompt = self._build_prompt(target)
 
         try:
             client = self._ensure_mistral()
-            
+
             try:
                 chat_response = client.chat.complete(
                     model=MISTRAL_MODEL,
@@ -597,46 +671,42 @@ Rules:
                 )
             except Exception as api_error:
                 error_msg = str(api_error).lower()
-                
+
                 if "api key" in error_msg or "unauthorized" in error_msg:
                     return None, AuthenticationError(
-                        "Invalid Mistral API key",
-                        str(api_error)
+                        "Invalid Mistral API key", str(api_error)
                     )
                 if "rate limit" in error_msg or "429" in error_msg:
                     return None, RateLimitError(
-                        "Mistral API rate limit exceeded",
-                        details=str(api_error)
+                        "Mistral API rate limit exceeded", details=str(api_error)
                     )
                 if "timeout" in error_msg:
                     return None, AgentError(
                         "Mistral API timeout",
                         ErrorSeverity.MEDIUM,
                         retryable=True,
-                        details=str(api_error)
+                        details=str(api_error),
                     )
-                
+
                 return None, AgentError(
                     f"Mistral API error: {api_error}",
                     ErrorSeverity.MEDIUM,
                     retryable=True,
-                    details=str(api_error)
+                    details=str(api_error),
                 )
 
             if not chat_response or not chat_response.choices:
                 return None, AgentError(
                     "Empty response from Mistral API",
                     ErrorSeverity.HIGH,
-                    retryable=True
+                    retryable=True,
                 )
 
             response_text = chat_response.choices[0].message.content.strip()
 
             if not response_text:
                 return None, AgentError(
-                    "Empty content from Mistral",
-                    ErrorSeverity.HIGH,
-                    retryable=True
+                    "Empty content from Mistral", ErrorSeverity.HIGH, retryable=True
                 )
 
             if response_text.startswith("```"):
@@ -647,18 +717,18 @@ Rules:
                 data = json.loads(response_text)
             except json.JSONDecodeError as e:
                 if "```" in response_text:
-                    json_match = re.search(r'\{[^}]+\}', response_text, re.DOTALL)
+                    json_match = re.search(r"\{[^}]+\}", response_text, re.DOTALL)
                     if json_match:
                         data = json.loads(json_match.group())
                     else:
                         return None, ValidationError(
                             "Could not parse JSON from response",
-                            f"Error: {e} | Preview: {response_text[:200]}"
+                            f"Error: {e} | Preview: {response_text[:200]}",
                         )
                 else:
                     return None, ValidationError(
                         "Invalid JSON from Mistral",
-                        f"Error: {e} | Preview: {response_text[:200]}"
+                        f"Error: {e} | Preview: {response_text[:200]}",
                     )
 
             required_keys = ["improved_code", "commit_message", "description"]
@@ -666,7 +736,7 @@ Rules:
                 if key not in data:
                     return None, ValidationError(
                         f"Missing required key '{key}' in response",
-                        f"Keys present: {list(data.keys())}"
+                        f"Keys present: {list(data.keys())}",
                     )
 
             if not data["improved_code"] or len(data["improved_code"].strip()) < 10:
@@ -676,30 +746,33 @@ Rules:
 
             commit_msg = str(data["commit_message"])[:72]
             if len(commit_msg) < 3:
-                return None, ValidationError(
-                    "Invalid commit_message - too short"
-                )
+                return None, ValidationError("Invalid commit_message - too short")
 
-            return Contribution(
-                improved_code=data["improved_code"],
-                commit_message=commit_msg,
-                description=str(data["description"])[:200],
-            ), None
+            return (
+                Contribution(
+                    improved_code=data["improved_code"],
+                    commit_message=commit_msg,
+                    description=str(data["description"])[:200],
+                ),
+                None,
+            )
 
         except Exception as e:
             error = AgentError(
                 f"Unexpected error generating contribution: {e}",
                 ErrorSeverity.HIGH,
                 retryable=True,
-                details=str(e)
+                details=str(e),
             )
             logger.exception("Error in generate_contribution")
             return None, error
 
-    def push_contribution(self, target: ContributionTarget, contribution: Contribution) -> tuple[bool, Optional[AgentError]]:
+    def push_contribution(
+        self, target: ContributionTarget, contribution: Contribution
+    ) -> tuple[bool, Optional[AgentError]]:
         repo_name = target.repo.full_name
         file_path = target.file.path
-        
+
         sha, error = self.get_file_sha(repo_name, file_path)
         if error:
             return False, error
@@ -707,7 +780,7 @@ Rules:
         if not sha:
             return False, ContentError(
                 "Could not get file SHA - file may have been deleted",
-                f"Repo: {repo_name}, File: {file_path}"
+                f"Repo: {repo_name}, File: {file_path}",
             )
 
         try:
@@ -715,9 +788,7 @@ Rules:
                 contribution.improved_code.encode("utf-8")
             ).decode("utf-8")
         except Exception as e:
-            return False, ValidationError(
-                f"Failed to encode content: {e}"
-            )
+            return False, ValidationError(f"Failed to encode content: {e}")
 
         url = f"{GITHUB_API_BASE}/repos/{repo_name}/contents/{file_path}"
         payload = {
@@ -733,9 +804,7 @@ Rules:
 
         if resp is None:
             return False, AgentError(
-                "No response from GitHub after push",
-                ErrorSeverity.HIGH,
-                retryable=True
+                "No response from GitHub after push", ErrorSeverity.HIGH, retryable=True
             )
 
         if resp.status_code in (200, 201):
@@ -755,16 +824,20 @@ Rules:
             return False, f"Network error: {error.message}", error
 
         if resp is None:
-            return False, "No response from GitHub", AgentError(
-                "No response during validation",
-                ErrorSeverity.HIGH,
-                retryable=True
+            return (
+                False,
+                "No response from GitHub",
+                AgentError(
+                    "No response during validation", ErrorSeverity.HIGH, retryable=True
+                ),
             )
 
         user_data = resp.json()
         if not isinstance(user_data, dict):
-            return False, "Invalid response from GitHub", ValidationError(
-                "User data is not a valid dict"
+            return (
+                False,
+                "Invalid response from GitHub",
+                ValidationError("User data is not a valid dict"),
             )
 
         username = user_data.get("login", "unknown")

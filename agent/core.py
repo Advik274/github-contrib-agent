@@ -96,12 +96,14 @@ class RateLimitError(Exception):
 
 def _make_session(token: str, username: str) -> requests.Session:
     session = requests.Session()
-    session.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Accept": GITHUB_MEDIA_TYPE,
-        "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        "User-Agent": f"github-contribution-agent/{username}",
-    })
+    session.headers.update(
+        {
+            "Authorization": f"Bearer {token}",
+            "Accept": GITHUB_MEDIA_TYPE,
+            "X-GitHub-Api-Version": GITHUB_API_VERSION,
+            "User-Agent": f"github-contribution-agent/{username}",
+        }
+    )
 
     retry = Retry(
         total=MAX_RETRIES,
@@ -124,7 +126,11 @@ class GitHubAgent:
         self.mistral_api_key = config.mistral_api_key
         self.github_username = config.github_username
         self._api_calls = 0
-        self._max_calls = config.max_api_calls if hasattr(config, 'max_api_calls') else MAX_API_CALLS_PER_RUN
+        self._max_calls = (
+            config.max_api_calls
+            if hasattr(config, "max_api_calls")
+            else MAX_API_CALLS_PER_RUN
+        )
 
         self.session = _make_session(self.github_token, self.github_username)
         self.mistral = Mistral(api_key=self.mistral_api_key)
@@ -154,7 +160,11 @@ class GitHubAgent:
             self._api_calls += 1
             self._check_rate_limit(resp)
             return resp
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, socket.gaierror) as e:
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            socket.gaierror,
+        ) as e:
             logger.error(f"Network error reaching GitHub: {e}")
             return None
 
@@ -164,7 +174,11 @@ class GitHubAgent:
             self._api_calls += 1
             self._check_rate_limit(resp)
             return resp
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, socket.gaierror) as e:
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            socket.gaierror,
+        ) as e:
             logger.error(f"Network error on PUT: {e}")
             return None
 
@@ -185,19 +199,23 @@ class GitHubAgent:
             if r.get("fork", False):
                 continue
 
-            repos.append(Repository(
-                full_name=r["full_name"],
-                name=r["name"],
-                default_branch=r.get("default_branch", "main"),
-                description=r.get("description"),
-                language=r.get("language"),
-                topics=r.get("topics", []),
-            ))
+            repos.append(
+                Repository(
+                    full_name=r["full_name"],
+                    name=r["name"],
+                    default_branch=r.get("default_branch", "main"),
+                    description=r.get("description"),
+                    language=r.get("language"),
+                    topics=r.get("topics", []),
+                )
+            )
 
         logger.info(f"Found {len(repos)} owned repos")
         return repos
 
-    def get_repo_files(self, repo_full_name: str, path: str = "", depth: int = 0) -> list[RepoFile]:
+    def get_repo_files(
+        self, repo_full_name: str, path: str = "", depth: int = 0
+    ) -> list[RepoFile]:
         if depth > 2 or self._api_calls >= self._max_calls:
             return []
 
@@ -216,15 +234,19 @@ class GitHubAgent:
             if item["type"] == "file":
                 ext = Path(item["name"]).suffix.lower()
                 if ext in SUPPORTED_EXTENSIONS:
-                    files.append(RepoFile(
-                        name=item["name"],
-                        path=item["path"],
-                        sha=item.get("sha"),
-                        size=item.get("size", 0),
-                        language=SUPPORTED_EXTENSIONS[ext],
-                    ))
+                    files.append(
+                        RepoFile(
+                            name=item["name"],
+                            path=item["path"],
+                            sha=item.get("sha"),
+                            size=item.get("size", 0),
+                            language=SUPPORTED_EXTENSIONS[ext],
+                        )
+                    )
             elif item["type"] == "dir" and depth < 2:
-                files.extend(self.get_repo_files(repo_full_name, item["path"], depth + 1))
+                files.extend(
+                    self.get_repo_files(repo_full_name, item["path"], depth + 1)
+                )
 
         return files
 
@@ -238,7 +260,9 @@ class GitHubAgent:
         data = resp.json()
         if data.get("encoding") == "base64":
             try:
-                return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+                return base64.b64decode(data["content"]).decode(
+                    "utf-8", errors="replace"
+                )
             except Exception as e:
                 logger.error(f"Failed to decode file content: {e}")
                 return None
@@ -254,8 +278,11 @@ class GitHubAgent:
 
         return None
 
-    def pick_contribution_target(self, repos: list[Repository]) -> Optional[ContributionTarget]:
+    def pick_contribution_target(
+        self, repos: list[Repository]
+    ) -> Optional[ContributionTarget]:
         import random
+
         random.shuffle(repos)
 
         for repo in repos[:10]:
@@ -287,7 +314,9 @@ class GitHubAgent:
             logger.error(f"Mistral API error: {e}")
             return None
 
-    def generate_contribution(self, target: ContributionTarget) -> Optional[Contribution]:
+    def generate_contribution(
+        self, target: ContributionTarget
+    ) -> Optional[Contribution]:
         content = target.content
 
         if len(content) > MAX_FILE_CONTENT_LENGTH:
@@ -341,7 +370,9 @@ Return ONLY valid JSON, no markdown fences."""
             description=result["description"],
         )
 
-    def push_contribution(self, target: ContributionTarget, contribution: Contribution) -> bool:
+    def push_contribution(
+        self, target: ContributionTarget, contribution: Contribution
+    ) -> bool:
         repo_name = target.repo.full_name
         file_path = target.file.path
         sha = self.get_file_sha(repo_name, file_path)
@@ -350,9 +381,9 @@ Return ONLY valid JSON, no markdown fences."""
             logger.error("Could not get file SHA")
             return False
 
-        encoded = base64.b64encode(
-            contribution.improved_code.encode("utf-8")
-        ).decode("utf-8")
+        encoded = base64.b64encode(contribution.improved_code.encode("utf-8")).decode(
+            "utf-8"
+        )
 
         url = f"{GITHUB_API_BASE}/repos/{repo_name}/contents/{file_path}"
         payload = {
@@ -368,7 +399,9 @@ Return ONLY valid JSON, no markdown fences."""
             return True
 
         error_msg = getattr(resp, "text", "no response") if resp else "no response"
-        logger.error(f"Push failed: {getattr(resp, 'status_code', 'no response')} - {error_msg}")
+        logger.error(
+            f"Push failed: {getattr(resp, 'status_code', 'no response')} - {error_msg}"
+        )
         return False
 
     def validate_credentials(self) -> tuple[bool, str]:
