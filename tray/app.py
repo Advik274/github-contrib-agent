@@ -62,7 +62,7 @@ class ToastWindow:
         import tkinter as tk
         from tkinter import scrolledtext
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel()
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
         self.root.attributes("-alpha", 0.96)
@@ -75,8 +75,7 @@ class ToastWindow:
 
         w, h = 390, 140
         sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        self.root.geometry(f"{w}x{h}+{sw - w - 16}+{sh - h - 62}")
+        self.root.geometry(f"{w}x{h}+{sw - w - 16}+40")
 
         row1 = tk.Frame(inner, bg="#161b22")
         row1.pack(fill="x", padx=12, pady=(10, 0))
@@ -123,17 +122,7 @@ class ToastWindow:
         buttons = tk.Frame(inner, bg="#161b22")
         buttons.pack(fill="x", padx=12, pady=(8, 10))
 
-        def on_approve():
-            if not self._resolved:
-                self._resolved = True
-                self.on_auto_approve(self.job)
-
-        def on_reject():
-            if not self._resolved:
-                self._resolved = True
-                self.on_reject()
-
-        tk.Button(
+        self.approve_btn = tk.Button(
             buttons,
             text="✅  Approve Now",
             font=("Segoe UI", 9, "bold"),
@@ -143,11 +132,13 @@ class ToastWindow:
             padx=10,
             pady=4,
             cursor="hand2",
-            command=on_approve,
+            command=self._do_approve,
             activebackground="#2ea043",
             bd=0,
-        ).pack(side="left")
-        tk.Button(
+        )
+        self.approve_btn.pack(side="left")
+
+        self.diff_btn = tk.Button(
             buttons,
             text="🔍  View Diff",
             font=("Segoe UI", 9),
@@ -160,8 +151,10 @@ class ToastWindow:
             command=self._open_diff,
             activebackground="#30363d",
             bd=0,
-        ).pack(side="left", padx=(6, 0))
-        tk.Button(
+        )
+        self.diff_btn.pack(side="left", padx=(6, 0))
+
+        self.reject_btn = tk.Button(
             buttons,
             text="✕  Reject",
             font=("Segoe UI", 9),
@@ -171,13 +164,29 @@ class ToastWindow:
             padx=10,
             pady=4,
             cursor="hand2",
-            command=on_reject,
+            command=self._do_reject,
             activebackground="#991b1b",
             bd=0,
-        ).pack(side="right")
+        )
+        self.reject_btn.pack(side="right")
 
+        self.root.update_idletasks()
         self.root.after(1000, self._tick)
         self.root.mainloop()
+
+    def _do_approve(self):
+        if self._resolved:
+            return
+        self._resolved = True
+        self.root.destroy()
+        self.on_auto_approve(self.job)
+
+    def _do_reject(self):
+        if self._resolved:
+            return
+        self._resolved = True
+        self.root.destroy()
+        self.on_reject()
 
     def _tick(self):
         if self._resolved:
