@@ -3,6 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+  <img src="https://img.shields.io/github/actions/workflow/status/Advik274/github-contrib-agent/ci.yml?style=flat" alt="CI">
   <img src="https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg" alt="Status">
 </p>
 
