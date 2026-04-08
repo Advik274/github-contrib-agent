@@ -148,7 +148,9 @@ class TestGitHubAgent:
             target = agent.pick_contribution_target([mock_repo])
             assert target is None
 
-    def test_generate_contribution_handles_empty_content(self, mock_config, mock_repo, mock_file):
+    def test_generate_contribution_handles_empty_content(
+        self, mock_config, mock_repo, mock_file
+    ):
         target = ContributionTarget(
             repo=mock_repo,
             file=mock_file,
@@ -159,7 +161,9 @@ class TestGitHubAgent:
         result = agent.generate_contribution(target)
         assert result is None
 
-    def test_generate_contribution_invalid_json(self, mock_config, mock_repo, mock_file):
+    def test_generate_contribution_invalid_json(
+        self, mock_config, mock_repo, mock_file
+    ):
         target = ContributionTarget(
             repo=mock_repo,
             file=mock_file,
@@ -183,13 +187,19 @@ class TestGitHubAgent:
 
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps({
-            "improved_code": "def test():\n    pass",
-            "commit_message": "No changes",
-            "description": "No changes made",
-        })
+        mock_response.choices[0].message.content = json.dumps(
+            {
+                "improved_code": "def test():\n    pass",
+                "commit_message": "No changes",
+                "description": "No changes made",
+            }
+        )
 
-        with patch.object(GitHubAgent, "ask_mistral", return_value=mock_response.choices[0].message.content):
+        with patch.object(
+            GitHubAgent,
+            "ask_mistral",
+            return_value=mock_response.choices[0].message.content,
+        ):
             agent = GitHubAgent(mock_config)
             result = agent.generate_contribution(target)
             assert result is None
@@ -210,8 +220,14 @@ class TestGitHubAgent:
         )
 
         with patch.object(GitHubAgent, "get_user_repos", return_value=[mock_repo]):
-            with patch.object(GitHubAgent, "pick_contribution_target", return_value=mock_job.target):
-                with patch.object(GitHubAgent, "generate_contribution", return_value=mock_job.contribution):
+            with patch.object(
+                GitHubAgent, "pick_contribution_target", return_value=mock_job.target
+            ):
+                with patch.object(
+                    GitHubAgent,
+                    "generate_contribution",
+                    return_value=mock_job.contribution,
+                ):
                     agent = GitHubAgent(mock_config)
                     result = agent.run()
 

@@ -66,32 +66,22 @@ class TestAgentConfig:
 
     def test_interval_validation_low(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(
-                **{**valid_config, "interval_hours": 0}
-            )
+            config = AgentConfig(**{**valid_config, "interval_hours": 0})
 
     def test_interval_validation_high(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(
-                **{**valid_config, "interval_hours": 200}
-            )
+            config = AgentConfig(**{**valid_config, "interval_hours": 200})
 
     def test_veto_validation_low(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(
-                **{**valid_config, "veto_seconds": 10}
-            )
+            config = AgentConfig(**{**valid_config, "veto_seconds": 10})
 
     def test_veto_validation_high(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(
-                **{**valid_config, "veto_seconds": 4000}
-            )
+            config = AgentConfig(**{**valid_config, "veto_seconds": 4000})
 
     def test_strip_whitespace(self, valid_config):
-        config = AgentConfig(
-            **{**valid_config, "github_token": "  ghp_test  "}
-        )
+        config = AgentConfig(**{**valid_config, "github_token": "  ghp_test  "})
         assert config.github_token == "ghp_test"
 
 
@@ -105,6 +95,7 @@ class TestConfigManager:
             json.dump(valid_config, f)
 
         from agent import config as config_module
+
         original_dir = config_module.CONFIG_DIR
         config_module.CONFIG_DIR = temp_config_dir
 
