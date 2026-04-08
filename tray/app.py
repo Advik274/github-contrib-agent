@@ -473,15 +473,11 @@ class TrayApp:
                     f"Contribution ready: {result.job.contribution.commit_message}"
                 )
                 self._set_status("pending")
-                threading.Thread(
-                    target=self._show_toast, args=(result.job,), daemon=True
-                ).start()
+                self._show_toast(result.job)
             else:
                 self._set_status("idle")
                 if result.error:
-                    logger.info(
-                        f"[{result.error_severity.value.upper()}] {result.message}: {result.error}"
-                    )
+                    logger.info(f"{result.message}: {result.error}")
                 else:
                     logger.info(f"Nothing to contribute: {result.message}")
 
