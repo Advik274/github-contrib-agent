@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from threading import Event, Thread
-from typing import Optional
+from typing import Callable, Optional
 
 import requests
 from mistralai import Mistral
@@ -914,7 +914,7 @@ Rules:
 
 
 class OptimizedScheduler:
-    def __init__(self, interval_hours: float, on_run: callable, on_status: callable):
+    def __init__(self, interval_hours: float, on_run: Callable, on_status: Callable):
         self.interval_seconds = interval_hours * 3600
         self.on_run = on_run
         self.on_status = on_status

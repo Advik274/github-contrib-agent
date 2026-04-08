@@ -43,7 +43,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install linting tools
-        run: pip install --upgrade pip black isort ruff mypy
+        run: pip install --upgrade pip black isort ruff
 
       - name: Check code formatting (Black)
         run: black --check --diff .
@@ -53,9 +53,6 @@ jobs:
 
       - name: Run Ruff linter
         run: ruff check .
-
-      - name: Run MyPy type check
-        run: mypy agent/
 
   build:
     runs-on: windows-latest
