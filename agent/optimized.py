@@ -20,6 +20,7 @@ from .constants import (
     GITHUB_API_BASE,
     GITHUB_API_VERSION,
     GITHUB_MEDIA_TYPE,
+    HISTORY_FILE,
     MAX_API_CALLS_PER_RUN,
     MAX_FILE_CONTENT_LENGTH,
     MAX_RETRIES,
@@ -207,6 +208,34 @@ class HibernatingAgent:
         self._mistral: Optional[Mistral] = None
         self._api_calls = 0
         self._last_error: Optional[AgentError] = None
+        self._processed_files: set = self._load_history()
+
+    def _load_history(self) -> set:
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if HISTORY_FILE.exists():
+            try:
+                data = json.loads(HISTORY_FILE.read_text())
+                return set(data.get("processed_files", []))
+            except (json.JSONDecodeError, IOError):
+                return set()
+        return set()
+
+    def _save_history(self):
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        data = {"processed_files": list(self._processed_files)}
+        HISTORY_FILE.write_text(json.dumps(data, indent=2))
+
+    def _mark_processed(self, repo_name: str, file_path: str):
+        key = f"{repo_name}/{file_path}"
+        self._processed_files.add(key)
+        self._save_history()
+        logger.info(f"Marked as processed: {key}")
+
+    def _is_processed(self, repo_name: str, file_path: str) -> bool:
+        key = f"{repo_name}/{file_path}"
+        return key in self._processed_files
+        key = f"{repo_name}/{file_path}"
+        return key in self._contributed_files
 
     def _ensure_session(self) -> requests.Session:
         if self._session is None:
@@ -596,6 +625,12 @@ class HibernatingAgent:
                 continue
 
             for file in files[:15]:
+                if self._is_processed(repo.full_name, file.path):
+                    logger.debug(
+                        f"Skipping already contributed: {repo.full_name}/{file.path}"
+                    )
+                    continue
+
                 content, error = self.get_file_content(repo.full_name, file.path)
                 if error:
                     logger.warning(f"Error fetching content for {file.path}: {error}")

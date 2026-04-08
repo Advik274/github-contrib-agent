@@ -4,6 +4,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
 LOG_DIR = PROJECT_ROOT / "logs"
 DATA_DIR = PROJECT_ROOT / "data"
+HISTORY_FILE = DATA_DIR / "contribution_history.json"
 
 VERSION = (PROJECT_ROOT / "VERSION").read_text().strip()
 

@@ -177,7 +177,7 @@ class ToastWindow:
             bd=0,
         ).pack(side="right")
 
-        self._tick()
+        self.root.after(1000, self._tick)
         self.root.mainloop()
 
     def _tick(self):
@@ -464,6 +464,12 @@ class TrayApp:
 
     def _on_reject(self):
         logger.info("Contribution rejected - looking for another...")
+
+        if self._pending_job:
+            job = self._pending_job
+            agent = self._get_agent()
+            agent._mark_processed(job.target.repo.full_name, job.target.file.path)
+
         self._pending_job = None
         self._notify("GitHub Agent", "Looking for another contribution...")
         self._set_status("working")
