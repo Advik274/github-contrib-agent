@@ -1,5 +1,4 @@
 from .config import AgentConfig, ConfigManager, get_config_manager, load_config
-from .constants import *
 from .core import (
     AgentResult,
     Contribution,

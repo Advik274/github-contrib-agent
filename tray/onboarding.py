@@ -1,7 +1,5 @@
-import json
 import logging
 import tkinter as tk
-from pathlib import Path
 from tkinter import messagebox
 
 from agent.config import AgentConfig, ConfigManager

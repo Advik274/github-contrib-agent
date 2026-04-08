@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from threading import Event, Thread
-from typing import Optional, Union
+from typing import Optional
 
 import requests
 from mistralai import Mistral
@@ -24,7 +24,6 @@ from .constants import (
     MAX_FILE_CONTENT_LENGTH,
     MAX_RETRIES,
     MISTRAL_MODEL,
-    MISTRAL_TIMEOUT,
     REQUEST_TIMEOUT,
     RETRY_BACKOFF_FACTOR,
     SUPPORTED_EXTENSIONS,

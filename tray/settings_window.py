@@ -5,13 +5,8 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Optional
 
-from agent.config import AgentConfig, ConfigManager, get_config_manager
-from agent.constants import (
-    DEFAULT_INTERVAL_HOURS,
-    DEFAULT_VETO_SECONDS,
-    MAX_VETO_SECONDS,
-    MIN_VETO_SECONDS,
-)
+from agent.config import AgentConfig, get_config_manager
+from agent.constants import MAX_VETO_SECONDS, MIN_VETO_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -385,7 +380,7 @@ class SettingsWindow:
             from mistralai import Mistral
 
             client = Mistral(api_key=self.config.mistral_api_key)
-            response = client.chat.complete(
+            client.chat.complete(
                 model="mistral-small",
                 messages=[{"role": "user", "content": "Hi"}],
             )

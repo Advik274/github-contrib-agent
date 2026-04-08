@@ -2,9 +2,8 @@ import logging
 import logging.handlers
 import signal
 import sys
-from pathlib import Path
 
-from agent.config import ConfigManager, get_config_manager, load_config
+from agent.config import get_config_manager
 from agent.constants import LOG_DIR, VERSION
 
 LOG_DIR.mkdir(exist_ok=True)

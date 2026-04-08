@@ -1,7 +1,4 @@
 import json
-import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -66,19 +63,19 @@ class TestAgentConfig:
 
     def test_interval_validation_low(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(**{**valid_config, "interval_hours": 0})
+            AgentConfig(**{**valid_config, "interval_hours": 0})
 
     def test_interval_validation_high(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(**{**valid_config, "interval_hours": 200})
+            AgentConfig(**{**valid_config, "interval_hours": 200})
 
     def test_veto_validation_low(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(**{**valid_config, "veto_seconds": 10})
+            AgentConfig(**{**valid_config, "veto_seconds": 10})
 
     def test_veto_validation_high(self, valid_config):
         with pytest.raises(Exception):
-            config = AgentConfig(**{**valid_config, "veto_seconds": 4000})
+            AgentConfig(**{**valid_config, "veto_seconds": 4000})
 
     def test_strip_whitespace(self, valid_config):
         config = AgentConfig(**{**valid_config, "github_token": "  ghp_test  "})

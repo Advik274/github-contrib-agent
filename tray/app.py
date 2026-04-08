@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 
 from agent.config import AgentConfig
 from agent.constants import STATUS_COLORS
-from agent.core import AgentResult, ContributionJob
+from agent.core import ContributionJob
 from agent.optimized import HibernatingAgent, OptimizedScheduler
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,6 @@ class ToastWindow:
 
     def show(self):
         import tkinter as tk
-        from tkinter import scrolledtext
 
         self.root = tk.Tk()
         self.root.overrideredirect(True)
