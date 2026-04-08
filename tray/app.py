@@ -1,4 +1,3 @@
-import gc
 import logging
 import os
 import threading
@@ -61,7 +60,6 @@ class ToastWindow:
 
     def show(self):
         import tkinter as tk
-        from tkinter import scrolledtext
 
         self.root = tk.Toplevel()
         self.root.overrideredirect(True)

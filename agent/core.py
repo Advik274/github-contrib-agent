@@ -15,7 +15,6 @@ from urllib3.util.retry import Retry
 
 from .config import AgentConfig
 from .constants import (
-    DATA_DIR,
     GITHUB_API_BASE,
     GITHUB_API_VERSION,
     GITHUB_MEDIA_TYPE,
