@@ -61,7 +61,11 @@ class ToastWindow:
     def show(self):
         import tkinter as tk
 
-        self.root = tk.Toplevel()
+        self._root = tk.Tk()
+        self._root.withdraw()
+        self._root.attributes("-alpha", 0)
+        
+        self.root = tk.Toplevel(self._root)
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
         self.root.attributes("-alpha", 0.96)
@@ -185,6 +189,7 @@ class ToastWindow:
             return
         self._resolved = True
         self.root.destroy()
+        self._root.destroy()
         self.on_reject()
 
     def _tick(self):
@@ -204,6 +209,7 @@ class ToastWindow:
             return
         self._resolved = True
         self.root.destroy()
+        self._root.destroy()
         self.on_auto_approve(self.job)
 
     def _reject(self):
@@ -211,6 +217,7 @@ class ToastWindow:
             return
         self._resolved = True
         self.root.destroy()
+        self._root.destroy()
         self.on_reject()
 
     def _open_diff(self):
