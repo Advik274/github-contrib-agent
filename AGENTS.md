@@ -1,58 +1,61 @@
 # Agent Commands
 
-This file contains commands for linting, testing, and typechecking the project.
+This file contains commands for linting, testing, typechecking, and building the project.
 
 ## Development Commands
 
 ### Install Dependencies
 
 ```bash
-# Runtime dependencies
+# Install runtime dependencies
 pip install -r requirements.txt
 
-# Development dependencies
+# Install development dependencies (linting, testing, typechecking)
 pip install -r requirements-dev.txt
 ```
 
 ### Run Tests
 
 ```bash
+# Run all tests with pytest
 pytest
 ```
 
 ### Code Formatting
 
 ```bash
-# Format all Python files
+# Auto-format Python code using Black
 black .
 
-# Sort imports
+# Sort Python imports using isort
 isort .
 ```
 
 ### Type Checking
 
 ```bash
+# Run static type checking on the agent module
 mypy agent/
 ```
 
 ### Linting
 
 ```bash
+# Run Ruff linter to catch code issues
 ruff check .
 ```
 
 ### Full Quality Check
 
 ```bash
-# Run all checks
+# Run all quality checks in sequence (formatting, linting, type checking, tests)
 black . && isort . && ruff check . && mypy agent/ && pytest
 ```
 
 ## Building
 
 ```bash
-# Build package (when ready for distribution)
+# Build the package for distribution (requires build package)
 pip install build
 python -m build
 ```
