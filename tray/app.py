@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 import threading
@@ -10,11 +11,13 @@ from PIL import Image, ImageDraw
 
 from agent.config import AgentConfig
 from agent.constants import STATUS_COLORS
-from agent.core import AgentResult, ContributionJob, GitHubAgent
+from agent.core import AgentResult, ContributionJob
+from agent.optimized import HibernatingAgent, OptimizedScheduler
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_VETO_SECONDS = 300
+MEMORY_CLEANUP_INTERVAL = 3600
 
 
 def create_tray_icon(color: str = "#2ea44f") -> Image.Image:
@@ -78,79 +81,55 @@ class ToastWindow:
         tk.Label(row1, text="🤖", font=("Segoe UI", 13),
                  bg="#161b22", fg="#e6edf3").pack(side="left")
         tk.Label(row1, text="  Auto-pushing in",
-                 font=("Segoe UI", 9), bg="#161b22", fg="#8b949e").pack(side="left")
+                 font=("Segoe UI", 11, "bold"),
+                 bg="#161b22", fg="#e6edf3").pack(side="left")
+        self.timer_label = tk.Label(row1, text=f"{self.veto_seconds}s",
+                                    font=("Segoe UI", 11, "bold"), bg="#161b22", fg="#58a6ff")
+        self.timer_label.pack(side="right")
 
-        self._timer_var = tk.StringVar(value=self._fmt())
-        tk.Label(row1, textvariable=self._timer_var,
-                 font=("Consolas", 10, "bold"),
-                 bg="#161b22", fg="#f0883e").pack(side="left", padx=(4, 0))
+        msg = tk.Frame(inner, bg="#161b22")
+        msg.pack(fill="x", padx=12)
+        tk.Label(msg, text=f"📁 {self._job_dict['target']['repo']['name']}/{self._job_dict['target']['file']['path']}",
+                 font=("Segoe UI", 9), bg="#161b22", fg="#8b949e").pack(anchor="w")
+        tk.Label(msg, text=f"📝 {self._job_dict['contribution']['commit_message']}",
+                 font=("Segoe UI", 9), bg="#161b22", fg="#79c0ff",
+                 wraplength=350, anchor="w", justify="left").pack(anchor="w", pady=(2, 0))
 
-        tk.Label(row1, text="— do nothing to allow",
-                 font=("Segoe UI", 9), bg="#161b22", fg="#484f58").pack(side="left")
+        buttons = tk.Frame(inner, bg="#161b22")
+        buttons.pack(fill="x", padx=12, pady=(8, 10))
 
-        msg = self._job_dict["contribution"]["commit_message"]
-        if len(msg) > 55:
-            msg = msg[:52] + "..."
-        tk.Label(inner, text=msg,
-                 font=("Consolas", 9), bg="#161b22", fg="#79c0ff",
-                 anchor="w", justify="left").pack(fill="x", padx=12, pady=(5, 0))
+        def on_approve():
+            if not self._resolved:
+                self._resolved = True
+                self.on_auto_approve(self.job)
 
-        loc = f"📁  {self._job_dict['target']['repo']['name']} / {self._job_dict['target']['file']['path']}"
-        if len(loc) > 58:
-            loc = loc[:55] + "..."
-        tk.Label(inner, text=loc,
-                 font=("Segoe UI", 8), bg="#161b22", fg="#484f58",
-                 anchor="w").pack(fill="x", padx=12)
+        def on_reject():
+            if not self._resolved:
+                self._resolved = True
+                self.on_reject()
 
-        bf = tk.Frame(inner, bg="#161b22")
-        bf.pack(fill="x", padx=12, pady=(8, 10))
-
-        tk.Button(bf, text="✕  Reject",
-                  font=("Segoe UI", 8, "bold"), bg="#b91c1c", fg="white",
+        tk.Button(buttons, text="✅  Approve Now",
+                  font=("Segoe UI", 9, "bold"), bg="#238636", fg="white",
                   relief="flat", padx=10, pady=4, cursor="hand2",
-                  command=self._reject,
-                  activebackground="#991b1b", activeforeground="white",
-                  bd=0).pack(side="left")
-
-        tk.Button(bf, text="👁  View diff",
-                  font=("Segoe UI", 8), bg="#21262d", fg="#c9d1d9",
+                  command=on_approve, activebackground="#2ea043", bd=0).pack(side="left")
+        tk.Button(buttons, text="🔍  View Diff",
+                  font=("Segoe UI", 9), bg="#21262d", fg="#c9d1d9",
                   relief="flat", padx=10, pady=4, cursor="hand2",
-                  command=self._open_diff,
-                  activebackground="#30363d", activeforeground="white",
-                  bd=0).pack(side="left", padx=(6, 0))
-
-        self._progress_canvas = tk.Canvas(inner, height=3, bg="#161b22",
-                                          highlightthickness=0)
-        self._progress_canvas.pack(fill="x", side="bottom")
-        self._progress_bar = self._progress_canvas.create_rectangle(
-            0, 0, w, 3, fill="#2ea44f", outline="")
+                  command=self._open_diff, activebackground="#30363d", bd=0).pack(side="left", padx=(6, 0))
+        tk.Button(buttons, text="✕  Reject",
+                  font=("Segoe UI", 9), bg="#b91c1c", fg="white",
+                  relief="flat", padx=10, pady=4, cursor="hand2",
+                  command=on_reject, activebackground="#991b1b", bd=0).pack(side="right")
 
         self._tick()
         self.root.mainloop()
 
-    def _fmt(self) -> str:
-        m, s = divmod(self.remaining, 60)
-        return f"{m}:{s:02d}"
-
     def _tick(self):
         if self._resolved:
             return
-        self.remaining -= 1
-        self._timer_var.set(self._fmt())
 
-        try:
-            ratio = self.remaining / self.veto_seconds
-            w = self._progress_canvas.winfo_width()
-            self._progress_canvas.coords(self._progress_bar, 0, 0, int(w * ratio), 3)
-            if ratio > 0.5:
-                color = "#2ea44f"
-            elif ratio > 0.2:
-                color = "#f0883e"
-            else:
-                color = "#f85149"
-            self._progress_canvas.itemconfig(self._progress_bar, fill=color)
-        except Exception:
-            pass
+        self.remaining -= 1
+        self.timer_label.config(text=f"{self.remaining}s")
 
         if self.remaining <= 0:
             self._auto_push()
@@ -246,6 +225,9 @@ class TrayApp:
         self._pending_job: Optional[ContributionJob] = None
         self._next_run_time: Optional[float] = None
         self.veto_seconds = getattr(config, 'veto_seconds', DEFAULT_VETO_SECONDS)
+        self._agent: Optional[HibernatingAgent] = None
+        self._scheduler: Optional[OptimizedScheduler] = None
+        self._last_cleanup = time.time()
 
     def _set_status(self, status: str):
         self._status = status
@@ -257,24 +239,41 @@ class TrayApp:
 
     def _get_tooltip(self) -> str:
         status_texts = {
-            "idle": "GitHub Agent — idle",
+            "idle": "GitHub Agent — idle (optimized)",
             "working": "GitHub Agent — analyzing...",
             "pushing": "GitHub Agent — pushing...",
             "pending": "GitHub Agent — review needed!",
             "error": "GitHub Agent — error",
         }
         base = status_texts.get(self._status, "GitHub Agent")
-        if self._next_run_time:
+        if self._next_run_time and self._status == "idle":
             next_run = time.strftime("%H:%M", time.localtime(self._next_run_time))
             base += f" | Next: {next_run}"
         return base
+
+    def _get_agent(self) -> HibernatingAgent:
+        if self._agent is None:
+            self._agent = HibernatingAgent(self.config)
+        return self._agent
+
+    def _hibernate_agent(self):
+        if self._agent is not None:
+            self._agent.hibernate()
+        gc.collect()
+        logger.debug("Memory cleanup completed")
+
+    def _maybe_cleanup_memory(self):
+        now = time.time()
+        if now - self._last_cleanup > MEMORY_CLEANUP_INTERVAL:
+            self._hibernate_agent()
+            self._last_cleanup = now
 
     def _run_agent(self):
         self._set_status("working")
         logger.info("Agent run started")
 
         try:
-            agent = GitHubAgent(self.config)
+            agent = self._get_agent()
             result = agent.run()
 
             if result.success and result.job:
@@ -285,12 +284,16 @@ class TrayApp:
                     target=self._show_toast, args=(result.job,), daemon=True
                 ).start()
             else:
+                self._hibernate_agent()
                 self._set_status("idle")
                 logger.info(f"Nothing to contribute: {result.message}")
+
+            self._maybe_cleanup_memory()
 
         except Exception as e:
             logger.error(f"Agent error: {e}", exc_info=True)
             self._set_status("error")
+            self._hibernate_agent()
 
     def _show_toast(self, job: ContributionJob):
         toast = ToastWindow(
@@ -306,8 +309,8 @@ class TrayApp:
         logger.info("Auto-pushing contribution...")
 
         try:
-            agent = GitHubAgent(self.config)
-            success = agent.apply(job)
+            agent = self._get_agent()
+            success = agent.push_contribution(job.target, job.contribution)
             if success:
                 msg = job.contribution.commit_message
                 logger.info(f"✅ Pushed: {msg}")
@@ -317,6 +320,8 @@ class TrayApp:
                 self._notify("GitHub Agent ❌", "Push failed — check logs")
         except Exception as e:
             logger.error(f"Push error: {e}", exc_info=True)
+        finally:
+            self._hibernate_agent()
 
         self._pending_job = None
         self._set_status("idle")
@@ -333,7 +338,8 @@ class TrayApp:
             self.icon.notify(title, message)
 
     def _menu_run_now(self, icon, item):
-        threading.Thread(target=self._run_agent, daemon=True).start()
+        if self._status == "idle":
+            threading.Thread(target=self._run_agent, daemon=True).start()
 
     def _menu_open_logs(self, icon, item):
         log_path = Path(__file__).parent.parent / "logs" / "agent.log"
@@ -348,6 +354,9 @@ class TrayApp:
 
     def _menu_quit(self, icon, item):
         logger.info("Agent shutting down...")
+        self._hibernate_agent()
+        if self._scheduler:
+            self._scheduler.stop()
         icon.stop()
 
     def start(self):
@@ -360,21 +369,17 @@ class TrayApp:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("❌  Quit", self._menu_quit),
         )
-        self.icon = pystray.Icon("github_agent", img, "GitHub Agent — idle", menu)
+        self.icon = pystray.Icon("github_agent", img, "GitHub Agent — idle (optimized)", menu)
 
         interval_hours = getattr(self.config, 'interval_hours', 4)
+        auto_run = getattr(self.config, 'auto_run_on_startup', True)
 
-        def scheduler():
-            time.sleep(5)
-            if self.config.auto_run_on_startup:
-                threading.Thread(target=self._run_agent, daemon=True).start()
+        self._scheduler = OptimizedScheduler(
+            interval_hours=interval_hours,
+            on_run=self._run_agent,
+            on_status=self._set_status,
+        )
+        self._scheduler.start(run_on_start=auto_run)
 
-            while True:
-                sleep_seconds = interval_hours * 3600
-                self._next_run_time = time.time() + sleep_seconds
-                time.sleep(sleep_seconds)
-                threading.Thread(target=self._run_agent, daemon=True).start()
-
-        threading.Thread(target=scheduler, daemon=True).start()
-        logger.info(f"Started. Veto window: {self.veto_seconds}s. Interval: {interval_hours}h.")
+        logger.info(f"Started (optimized). Veto: {self.veto_seconds}s. Interval: {interval_hours}h.")
         self.icon.run()
