@@ -15,9 +15,11 @@ from urllib3.util.retry import Retry
 
 from .config import AgentConfig
 from .constants import (
+    DATA_DIR,
     GITHUB_API_BASE,
     GITHUB_API_VERSION,
     GITHUB_MEDIA_TYPE,
+    HISTORY_FILE,
     MAX_API_CALLS_PER_RUN,
     MAX_FILE_CONTENT_LENGTH,
     MAX_RETRIES,
@@ -133,6 +135,32 @@ class GitHubAgent:
 
         self.session = _make_session(self.github_token, self.github_username)
         self.mistral = Mistral(api_key=self.mistral_api_key)
+        self._processed_files: set = self._load_history()
+
+    def _load_history(self) -> set:
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if HISTORY_FILE.exists():
+            try:
+                data = json.loads(HISTORY_FILE.read_text())
+                return set(data.get("processed_files", []))
+            except (json.JSONDecodeError, IOError):
+                return set()
+        return set()
+
+    def _save_history(self):
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        data = {"processed_files": list(self._processed_files)}
+        HISTORY_FILE.write_text(json.dumps(data, indent=2))
+
+    def _mark_processed(self, repo_name: str, file_path: str):
+        key = f"{repo_name}/{file_path}"
+        self._processed_files.add(key)
+        self._save_history()
+        logger.info(f"Marked as processed: {key}")
+
+    def _is_processed(self, repo_name: str, file_path: str) -> bool:
+        key = f"{repo_name}/{file_path}"
+        return key in self._processed_files
 
     def _check_rate_limit(self, resp: requests.Response) -> None:
         remaining = resp.headers.get("x-ratelimit-remaining")
@@ -213,39 +241,66 @@ class GitHubAgent:
         return repos
 
     def get_repo_files(
-        self, repo_full_name: str, path: str = "", depth: int = 0
+        self, repo_full_name: str, default_branch: str = "main"
     ) -> list[RepoFile]:
-        if depth > 2 or self._api_calls >= self._max_calls:
+        branches_to_try = [default_branch, "main", "master", "develop", "dev"]
+
+        for branch in branches_to_try:
+            url = f"{GITHUB_API_BASE}/repos/{repo_full_name}/git/trees/{branch}?recursive=1"
+            resp = self._get(url)
+
+            if resp and resp.status_code == 200:
+                break
+        else:
             return []
 
-        url = f"{GITHUB_API_BASE}/repos/{repo_full_name}/contents/{path}"
-        resp = self._get(url)
-
-        if resp is None or resp.status_code != 200:
-            return []
-
-        items = resp.json()
-        if not isinstance(items, list):
+        data = resp.json()
+        if not isinstance(data, dict) or "tree" not in data:
             return []
 
         files = []
-        for item in items[:20]:
-            if item["type"] == "file":
-                ext = Path(item["name"]).suffix.lower()
-                if ext in SUPPORTED_EXTENSIONS:
-                    files.append(
-                        RepoFile(
-                            name=item["name"],
-                            path=item["path"],
-                            sha=item.get("sha"),
-                            size=item.get("size", 0),
-                            language=SUPPORTED_EXTENSIONS[ext],
-                        )
-                    )
-            elif item["type"] == "dir" and depth < 2:
-                files.extend(
-                    self.get_repo_files(repo_full_name, item["path"], depth + 1)
+        for item in data.get("tree", []):
+            if not isinstance(item, dict):
+                continue
+
+            if item.get("type") != "blob":
+                continue
+
+            path = item.get("path", "")
+            if not path:
+                continue
+
+            ext = Path(path).suffix.lower()
+
+            if ext not in SUPPORTED_EXTENSIONS:
+                continue
+
+            if item.get("size", 0) > MAX_FILE_CONTENT_LENGTH:
+                continue
+
+            skip_patterns = [
+                "node_modules",
+                ".git",
+                "__pycache__",
+                "venv",
+                ".venv",
+                "dist",
+                "build",
+                "env",
+                "egg-info",
+            ]
+            if any(skip in path.lower() for skip in skip_patterns):
+                continue
+
+            files.append(
+                RepoFile(
+                    name=Path(path).name,
+                    path=path,
+                    sha=item.get("sha"),
+                    size=item.get("size", 0),
+                    language=SUPPORTED_EXTENSIONS[ext],
                 )
+            )
 
         return files
 
@@ -284,13 +339,19 @@ class GitHubAgent:
 
         random.shuffle(repos)
 
-        for repo in repos[:10]:
-            files = self.get_repo_files(repo.full_name)
+        for repo in repos:
+            files = self.get_repo_files(repo.full_name, repo.default_branch)
             if not files:
                 continue
 
             random.shuffle(files)
-            for f in files[:5]:
+            for f in files:
+                if self._is_processed(repo.full_name, f.path):
+                    logger.debug(
+                        f"Skipping already processed: {repo.full_name}/{f.path}"
+                    )
+                    continue
+
                 content = self.get_file_content(repo.full_name, f.path)
                 if content and len(content) > 100:
                     return ContributionTarget(
@@ -395,6 +456,7 @@ Return ONLY valid JSON, no markdown fences."""
 
         if resp is not None and resp.status_code in (200, 201):
             logger.info(f"Pushed: {contribution.commit_message}")
+            self._mark_processed(repo_name, file_path)
             return True
 
         error_msg = getattr(resp, "text", "no response") if resp else "no response"

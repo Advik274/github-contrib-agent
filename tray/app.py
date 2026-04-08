@@ -11,13 +11,11 @@ from PIL import Image, ImageDraw
 
 from agent.config import AgentConfig
 from agent.constants import STATUS_COLORS
-from agent.core import ContributionJob
-from agent.optimized import HibernatingAgent, OptimizedScheduler
+from agent.core import ContributionJob, GitHubAgent
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_VETO_SECONDS = 300
-MEMORY_CLEANUP_INTERVAL = 3600
 
 
 def create_tray_icon(color: str = "#2ea44f") -> Image.Image:
@@ -62,6 +60,7 @@ class ToastWindow:
 
     def show(self):
         import tkinter as tk
+        from tkinter import scrolledtext
 
         self.root = tk.Tk()
         self.root.overrideredirect(True)
@@ -339,9 +338,9 @@ class TrayApp:
         self._pending_job: Optional[ContributionJob] = None
         self._next_run_time: Optional[float] = None
         self.veto_seconds = getattr(config, "veto_seconds", DEFAULT_VETO_SECONDS)
-        self._agent: Optional[HibernatingAgent] = None
-        self._scheduler: Optional[OptimizedScheduler] = None
-        self._last_cleanup = time.time()
+        self._agent: Optional[GitHubAgent] = None
+        self._scheduler_thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
 
     def _set_status(self, status: str):
         self._status = status
@@ -353,7 +352,7 @@ class TrayApp:
 
     def _get_tooltip(self) -> str:
         status_texts = {
-            "idle": "GitHub Agent — idle (optimized)",
+            "idle": "GitHub Agent — idle",
             "working": "GitHub Agent — analyzing...",
             "pushing": "GitHub Agent — pushing...",
             "pending": "GitHub Agent — review needed!",
@@ -365,22 +364,10 @@ class TrayApp:
             base += f" | Next: {next_run}"
         return base
 
-    def _get_agent(self) -> HibernatingAgent:
+    def _get_agent(self) -> GitHubAgent:
         if self._agent is None:
-            self._agent = HibernatingAgent(self.config)
+            self._agent = GitHubAgent(self.config)
         return self._agent
-
-    def _hibernate_agent(self):
-        if self._agent is not None:
-            self._agent.hibernate()
-        gc.collect()
-        logger.debug("Memory cleanup completed")
-
-    def _maybe_cleanup_memory(self):
-        now = time.time()
-        if now - self._last_cleanup > MEMORY_CLEANUP_INTERVAL:
-            self._hibernate_agent()
-            self._last_cleanup = now
 
     def _run_agent(self):
         self._set_status("working")
@@ -400,30 +387,18 @@ class TrayApp:
                     target=self._show_toast, args=(result.job,), daemon=True
                 ).start()
             else:
-                self._hibernate_agent()
                 self._set_status("idle")
-
                 if result.error:
-                    severity = result.error_severity.value.upper()
-                    logger.info(f"[{severity}] {result.message}: {result.error}")
-
-                    if (
-                        result.error_severity.value == "critical"
-                        or result.error_severity.value == "high"
-                    ):
-                        self._notify("GitHub Agent ⚠️", f"{result.message}")
-                    elif result.error_severity.value == "low":
-                        logger.debug(f"Nothing to contribute: {result.message}")
+                    logger.info(
+                        f"[{result.error_severity.value.upper()}] {result.message}: {result.error}"
+                    )
                 else:
                     logger.info(f"Nothing to contribute: {result.message}")
-
-            self._maybe_cleanup_memory()
 
         except Exception as e:
             logger.error(f"Agent error: {e}", exc_info=True)
             self._notify("GitHub Agent ❌", f"Error: {str(e)[:50]}")
             self._set_status("error")
-            self._hibernate_agent()
 
     def _show_toast(self, job: ContributionJob):
         toast = ToastWindow(
@@ -456,8 +431,6 @@ class TrayApp:
                 self._notify("GitHub Agent ❌", "Push failed - check logs")
         except Exception as e:
             logger.error(f"Push error: {e}", exc_info=True)
-        finally:
-            self._hibernate_agent()
 
         self._pending_job = None
         self._set_status("idle")
@@ -479,6 +452,20 @@ class TrayApp:
         if self.icon and self.config.show_notifications:
             self.icon.notify(title, message)
 
+    def _scheduler_loop(self):
+        interval_seconds = getattr(self.config, "interval_hours", 4) * 3600
+
+        while not self._stop_event.is_set():
+            if self._status == "idle":
+                self._run_agent()
+
+            self._next_run_time = time.time() + interval_seconds
+
+            for _ in range(int(interval_seconds)):
+                if self._stop_event.is_set():
+                    break
+                time.sleep(1)
+
     def _menu_run_now(self, icon, item):
         if self._status == "idle":
             threading.Thread(target=self._run_agent, daemon=True).start()
@@ -498,9 +485,9 @@ class TrayApp:
 
     def _menu_quit(self, icon, item):
         logger.info("Agent shutting down...")
-        self._hibernate_agent()
-        if self._scheduler:
-            self._scheduler.stop()
+        self._stop_event.set()
+        if self._scheduler_thread:
+            self._scheduler_thread.join(timeout=2)
         icon.stop()
 
     def start(self):
@@ -513,21 +500,14 @@ class TrayApp:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("❌  Quit", self._menu_quit),
         )
-        self.icon = pystray.Icon(
-            "github_agent", img, "GitHub Agent — idle (optimized)", menu
-        )
+        self.icon = pystray.Icon("github_agent", img, "GitHub Agent — idle", menu)
 
-        interval_hours = getattr(self.config, "interval_hours", 4)
         auto_run = getattr(self.config, "auto_run_on_startup", True)
 
-        self._scheduler = OptimizedScheduler(
-            interval_hours=interval_hours,
-            on_run=self._run_agent,
-            on_status=self._set_status,
-        )
-        self._scheduler.start(run_on_start=auto_run)
+        if auto_run:
+            threading.Thread(target=self._run_agent, daemon=True).start()
 
         logger.info(
-            f"Started (optimized). Veto: {self.veto_seconds}s. Interval: {interval_hours}h."
+            f"Started. Veto: {self.veto_seconds}s. Interval: {getattr(self.config, 'interval_hours', 4)}h."
         )
         self.icon.run()
