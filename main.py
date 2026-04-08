@@ -1,5 +1,6 @@
 import logging
 import logging.handlers
+import signal
 import sys
 from pathlib import Path
 
@@ -25,8 +26,27 @@ root_logger.addHandler(logging.StreamHandler(sys.stdout))
 
 logger = logging.getLogger(__name__)
 
+_tray_app = None
+
+
+def signal_handler(signum, frame):
+    logger.info("Received shutdown signal (Ctrl+C) - shutting down...")
+    if _tray_app:
+        try:
+            _tray_app._hibernate_agent()
+            if hasattr(_tray_app, '_scheduler') and _tray_app._scheduler:
+                _tray_app._scheduler.stop()
+        except Exception:
+            pass
+    sys.exit(0)
+
 
 def main():
+    global _tray_app
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     logger.info("=" * 60)
     logger.info(f"GitHub Contribution Agent v{VERSION.strip()} starting...")
     logger.info("=" * 60)
@@ -37,8 +57,8 @@ def main():
         logger.info(f"Loaded config for user: {config.github_username}")
 
         from tray.app import TrayApp
-        app = TrayApp(config)
-        app.start()
+        _tray_app = TrayApp(config)
+        _tray_app.start()
 
     except FileNotFoundError as e:
         logger.error(f"Configuration error: {e}")

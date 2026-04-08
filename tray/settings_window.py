@@ -25,6 +25,7 @@ class SettingsWindow:
         self._create_widgets()
         self._load_values()
         self._center_window()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _setup_styles(self):
         style = ttk.Style()
@@ -276,6 +277,9 @@ class SettingsWindow:
         except Exception as e:
             logger.error(f"Failed to save settings: {e}")
             messagebox.showerror("Error", f"Failed to save settings: {e}")
+
+    def _on_close(self):
+        self.root.destroy()
 
     def show(self):
         self.root.mainloop()
