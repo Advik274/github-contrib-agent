@@ -34,7 +34,7 @@ def signal_handler(signum, frame):
     if _tray_app:
         try:
             _tray_app._hibernate_agent()
-            if hasattr(_tray_app, '_scheduler') and _tray_app._scheduler:
+            if hasattr(_tray_app, "_scheduler") and _tray_app._scheduler:
                 _tray_app._scheduler.stop()
         except Exception:
             pass
@@ -57,12 +57,15 @@ def main():
         logger.info(f"Loaded config for user: {config.github_username}")
 
         from tray.app import TrayApp
+
         _tray_app = TrayApp(config)
         _tray_app.start()
 
     except FileNotFoundError as e:
         logger.error(f"Configuration error: {e}")
-        logger.error("Please copy config/config.example.json to config/config.json and fill it in.")
+        logger.error(
+            "Please copy config/config.example.json to config/config.json and fill it in."
+        )
         sys.exit(1)
     except ValueError as e:
         logger.error(f"Configuration validation error: {e}")
