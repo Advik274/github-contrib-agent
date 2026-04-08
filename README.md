@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg" alt="Status">
 </p>
 
-> An AI-powered background agent that keeps your GitHub contributions streak alive by analyzing your repos and proposing meaningful improvements — all under your control.
+> An autonomous agent that keeps your GitHub contributions streak alive by analyzing your repos and proposing meaningful improvements — all under your control.
 
 **No more empty contribution squares.** This agent runs silently in your system tray, uses Mistral AI to find improvements in your code, and only pushes changes you approve.
 
