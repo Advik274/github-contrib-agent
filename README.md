@@ -34,7 +34,7 @@
 
 ```bash
 git clone https://github.com/Advik274/github-contrib-agent.git
-cd github-contribution-agent
+cd github-contrib-agent
 pip install -r requirements.txt
 ```
 
