@@ -1,10 +1,22 @@
-# Lazy imports — don't import core at package level to avoid import errors
-# when dependencies aren't installed yet (e.g. during setup).
 from .config import AgentConfig, ConfigManager, get_config_manager, load_config
+from .core import (
+    AgentResult,
+    Contribution,
+    ContributionJob,
+    ContributionTarget,
+    GitHubAgent,
+    Repository,
+)
 
 __all__ = [
     "AgentConfig",
     "ConfigManager",
     "get_config_manager",
     "load_config",
+    "GitHubAgent",
+    "AgentResult",
+    "Contribution",
+    "ContributionJob",
+    "ContributionTarget",
+    "Repository",
 ]

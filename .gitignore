@@ -8,6 +8,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
+dist/
 downloads/
 eggs/
 .eggs/
@@ -23,6 +24,7 @@ wheels/
 
 # PyInstaller
 *.manifest
+*.spec
 
 # Unit test / coverage
 htmlcov/

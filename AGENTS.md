@@ -54,20 +54,6 @@ black . && isort . && ruff check . && mypy agent/ && pytest
 
 ## Building
 
-### Standalone Windows Executable
-
-```bat
-# Build standalone exe (no Python needed on target machine)
-build_exe.bat
-
-# Or use the installer which also builds
-install.bat
-```
-
-The standalone exe will be in `dist\github_agent\github_agent.exe`.
-
-### Python Package
-
 ```bash
 # Build the package for distribution (requires build package)
 pip install build

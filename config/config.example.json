@@ -1,29 +1,13 @@
 {
-  "github_token": "ghp_YOUR_GITHUB_PERSONAL_ACCESS_TOKEN",
-  "ai_provider": "google",
-  "ai_api_key": "YOUR_AI_PROVIDER_API_KEY",
-  "ai_model": "",
-  "github_username": "your_github_username",
+  "github_token": "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN",
+  "mistral_api_key": "YOUR_MISTRAL_API_KEY",
+  "github_username": "Advik274",
   "interval_hours": 4,
   "veto_seconds": 300,
-  "max_api_calls": 30,
-  "log_level": "INFO",
-  "auto_run_on_startup": true,
-  "show_notifications": true,
   "_notes": {
-    "github_token": "Classic PAT from github.com/settings/tokens — needs repo scope",
-    "ai_provider": "One of: google, openrouter, mistral, groq, together, openai",
-    "ai_api_key": "API key for your chosen provider",
-    "ai_model": "Leave blank to use the provider default model",
-    "interval_hours": "How often the agent runs (1-168 hours)",
-    "veto_seconds": "Auto-push countdown in seconds (30-3600)",
-    "providers": {
-      "google": "aistudio.google.com/apikey — free 15 req/min",
-      "groq": "console.groq.com/keys — free 6000 req/day",
-      "openrouter": "openrouter.ai/keys — many free models",
-      "mistral": "console.mistral.ai/api-keys — free tier",
-      "together": "api.together.xyz — $25 free credit",
-      "openai": "platform.openai.com/api-keys — paid only"
-    }
+    "github_token": "MUST be a Classic PAT (not Fine-Grained). Create at https://github.com/settings/tokens — needs 'repo' scope",
+    "mistral_api_key": "Get from https://console.mistral.ai/api-keys",
+    "interval_hours": "How often the agent runs automatically (default: every 4 hours)",
+    "veto_seconds": "How long the toast stays before auto-pushing. 300=5min, 60=1min, 3600=1hr"
   }
 }

@@ -1,49 +1,52 @@
-"""Tests for agent configuration."""
 import json
-import os
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 from agent.config import AgentConfig, ConfigManager
-from agent.constants import DEFAULT_INTERVAL_HOURS, DEFAULT_VETO_SECONDS, AI_PROVIDERS
+
+
+@pytest.fixture
+def temp_config_dir(tmp_path):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    return config_dir
 
 
 @pytest.fixture
 def valid_config():
     return {
-        "github_token": "ghp_testtoken123",
-        "ai_api_key": "test_ai_key",
+        "github_token": "ghp_test123456789",
+        "mistral_api_key": "mistral_test_key",
         "github_username": "testuser",
-        "interval_hours": DEFAULT_INTERVAL_HOURS,
-        "veto_seconds": DEFAULT_VETO_SECONDS,
+        "interval_hours": 4,
+        "veto_seconds": 300,
     }
 
 
 class TestAgentConfig:
     def test_valid_config(self, valid_config):
         config = AgentConfig(**valid_config)
-        assert config.github_token == "ghp_testtoken123"
-        assert config.ai_api_key == "test_ai_key"
+        assert config.github_token == "ghp_test123456789"
         assert config.github_username == "testuser"
+        assert config.interval_hours == 4
+        assert config.veto_seconds == 300
 
     def test_default_values(self):
         config = AgentConfig(
             github_token="ghp_test",
-            ai_api_key="key",
+            mistral_api_key="mistral_test",
             github_username="user",
         )
-        assert config.interval_hours == DEFAULT_INTERVAL_HOURS
-        assert config.veto_seconds == DEFAULT_VETO_SECONDS
-        assert config.auto_run_on_startup is True
+        assert config.interval_hours == 4
+        assert config.veto_seconds == 300
         assert config.show_notifications is True
-        assert config.ai_provider == "google"
+        assert config.auto_run_on_startup is True
 
     def test_custom_interval(self):
         config = AgentConfig(
             github_token="ghp_test",
-            ai_api_key="key",
+            mistral_api_key="mistral_test",
             github_username="user",
             interval_hours=8,
         )
@@ -52,97 +55,84 @@ class TestAgentConfig:
     def test_custom_veto_time(self):
         config = AgentConfig(
             github_token="ghp_test",
-            ai_api_key="key",
+            mistral_api_key="mistral_test",
             github_username="user",
             veto_seconds=600,
         )
         assert config.veto_seconds == 600
 
     def test_interval_validation_low(self, valid_config):
-        with pytest.raises(ValidationError):
+        with pytest.raises(Exception):
             AgentConfig(**{**valid_config, "interval_hours": 0})
 
     def test_interval_validation_high(self, valid_config):
-        with pytest.raises(ValidationError):
+        with pytest.raises(Exception):
             AgentConfig(**{**valid_config, "interval_hours": 200})
 
     def test_veto_validation_low(self, valid_config):
-        with pytest.raises(ValidationError):
-            AgentConfig(**{**valid_config, "veto_seconds": 5})
+        with pytest.raises(Exception):
+            AgentConfig(**{**valid_config, "veto_seconds": 10})
 
     def test_veto_validation_high(self, valid_config):
-        with pytest.raises(ValidationError):
-            AgentConfig(**{**valid_config, "veto_seconds": 99999})
+        with pytest.raises(Exception):
+            AgentConfig(**{**valid_config, "veto_seconds": 4000})
 
     def test_strip_whitespace(self, valid_config):
         config = AgentConfig(**{**valid_config, "github_token": "  ghp_test  "})
         assert config.github_token == "ghp_test"
 
-    def test_provider_validation(self, valid_config):
-        with pytest.raises(ValidationError):
-            AgentConfig(**{**valid_config, "ai_provider": "nonexistent_provider"})
-
-    def test_effective_model_default(self, valid_config):
-        config = AgentConfig(**{**valid_config, "ai_provider": "groq", "ai_model": ""})
-        assert config.effective_model() == AI_PROVIDERS["groq"][2]
-
-    def test_effective_model_override(self, valid_config):
-        config = AgentConfig(**{**valid_config, "ai_provider": "groq", "ai_model": "my-custom-model"})
-        assert config.effective_model() == "my-custom-model"
-
-    def test_legacy_migration(self):
-        config = AgentConfig.from_legacy({
-            "github_token": "ghp_test",
-            "mistral_api_key": "old_key",
-            "github_username": "user",
-        })
-        assert config.ai_api_key == "old_key"
-        assert config.ai_provider == "mistral"
-
-    def test_provider_api_base(self, valid_config):
-        config = AgentConfig(**{**valid_config, "ai_provider": "google"})
-        assert "generativelanguage" in config.provider_api_base()
-
 
 class TestConfigManager:
-    def test_save_and_load_config(self, tmp_path, valid_config):
-        config_path = tmp_path / "config.json"
-        with patch("agent.config.CONFIG_DIR", tmp_path):
-            ConfigManager._instance = None
-            ConfigManager._config = None
-            manager = ConfigManager.__new__(ConfigManager)
-            config = AgentConfig(**valid_config)
-            manager.config_manager = manager
-            with open(config_path, "w") as f:
-                json.dump(config.model_dump(), f)
-            loaded = json.loads(config_path.read_text())
-            assert loaded["github_token"] == "ghp_testtoken123"
-            assert loaded["ai_api_key"] == "test_ai_key"
+    def test_save_and_load_config(self, temp_config_dir, valid_config):
+        ConfigManager._config = None
+        ConfigManager._instance = None
 
-    def test_env_var_override(self, tmp_path, valid_config):
-        config_path = tmp_path / "config.json"
+        config_path = temp_config_dir / "config.json"
         with open(config_path, "w") as f:
             json.dump(valid_config, f)
 
-        with patch("agent.config.CONFIG_DIR", tmp_path), \
-             patch.dict(os.environ, {"GITHUB_TOKEN": "env_github_token"}):
-            ConfigManager._instance = None
-            ConfigManager._config = None
+        from agent import config as config_module
+
+        original_dir = config_module.CONFIG_DIR
+        config_module.CONFIG_DIR = temp_config_dir
+
+        try:
             manager = ConfigManager()
-            assert manager.config.github_token == "env_github_token"
+            config = manager.config
 
-        ConfigManager._instance = None
-        ConfigManager._config = None
-
-    def test_missing_required_field(self, tmp_path):
-        config_path = tmp_path / "config.json"
-        with open(config_path, "w") as f:
-            json.dump({"github_token": "ghp_test"}, f)  # missing ai_api_key, github_username
-        with patch("agent.config.CONFIG_DIR", tmp_path):
-            ConfigManager._instance = None
+            assert config.github_token == valid_config["github_token"]
+            assert config.github_username == valid_config["github_username"]
+        finally:
+            config_module.CONFIG_DIR = original_dir
             ConfigManager._config = None
-            mgr = ConfigManager()  # construction is fine
-            with pytest.raises(Exception):  # accessing .config should raise
-                _ = mgr.config
-        ConfigManager._instance = None
-        ConfigManager._config = None
+            ConfigManager._instance = None
+
+    def test_env_var_override(self, temp_config_dir, valid_config, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "env_ghp_token")
+        monkeypatch.setenv("MISTRAL_API_KEY", "env_mistral_key")
+
+        config_path = temp_config_dir / "config.json"
+        with open(config_path, "w") as f:
+            json.dump(valid_config, f)
+
+        with patch("agent.config.CONFIG_DIR", temp_config_dir):
+            ConfigManager._config = None
+            ConfigManager._instance = None
+            manager = ConfigManager()
+            config = manager.config
+
+            assert config.github_token == "env_ghp_token"
+            assert config.mistral_api_key == "env_mistral_key"
+
+    def test_missing_required_field(self, temp_config_dir):
+        invalid_config = {
+            "github_token": "ghp_test",
+            "mistral_api_key": "mistral_test",
+        }
+
+        with patch("agent.config.CONFIG_DIR", temp_config_dir):
+            ConfigManager._config = None
+            ConfigManager._instance = None
+
+            with pytest.raises(Exception):
+                AgentConfig(**invalid_config)

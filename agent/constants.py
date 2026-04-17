@@ -35,67 +35,14 @@ GITHUB_API_BASE = "https://api.github.com"
 GITHUB_API_VERSION = "2022-11-28"
 GITHUB_MEDIA_TYPE = "application/vnd.github+json"
 
-# ── AI Provider Registry ─────────────────────────────────────────────────────
-# Each entry: (display_name, api_base, default_model, env_var, free_tier_note)
-#
-# OpenRouter free models use the ":free" suffix.
-# The default model for each provider is verified working as of April 2026.
-AI_PROVIDERS = {
-    "google": (
-        "Google AI Studio (Gemini)",
-        "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "gemini-2.0-flash",
-        "GOOGLE_API_KEY",
-        "Free: 15 req/min, 1M tokens/day",
-    ),
-    "openrouter": (
-        "OpenRouter (multi-model)",
-        "https://openrouter.ai/api/v1",
-        "meta-llama/llama-3.2-3b-instruct:free",  # updated Apr 2026 — 3.1-8b removed from OpenRouter
-        "OPENROUTER_API_KEY",
-        "Free models available — append ':free' to model name",
-    ),
-    "groq": (
-        "Groq (ultra-fast inference)",
-        "https://api.groq.com/openai/v1",
-        "llama-3.1-8b-instant",
-        "GROQ_API_KEY",
-        "Free: 6 000 req/day, fastest inference",
-    ),
-    "mistral": (
-        "Mistral AI",
-        "https://api.mistral.ai/v1",
-        "mistral-small-latest",
-        "MISTRAL_API_KEY",
-        "Free tier: 1 req/s",
-    ),
-    "together": (
-        "Together AI",
-        "https://api.together.xyz/v1",
-        "meta-llama/Llama-3-8b-chat-hf",
-        "TOGETHER_API_KEY",
-        "Free $25 credit on signup",
-    ),
-    "openai": (
-        "OpenAI",
-        "https://api.openai.com/v1",
-        "gpt-4o-mini",
-        "OPENAI_API_KEY",
-        "Paid only",
-    ),
-}
+MISTRAL_MODEL = "mistral-large-latest"
+MISTRAL_TIMEOUT = 60
 
-# Ordered list for onboarding dropdown (best free options first)
-AI_PROVIDER_ORDER = ["google", "openrouter", "groq", "mistral", "together", "openai"]
-
-DEFAULT_AI_PROVIDER = "google"
-AI_TIMEOUT = 60
-
-MAX_API_CALLS_PER_RUN = 60  # GitHub allows 5000/hour for authenticated users; 60 gives headroom for repo scans
+MAX_API_CALLS_PER_RUN = 30
 MAX_FILE_SIZE_BYTES = 500_000
 MAX_FILE_CONTENT_LENGTH = 4000
-MAX_RETRIES = 2  # Was 4 — each retry multiplies call cost
-RETRY_BACKOFF_FACTOR = 1  # Was 2 — linear is safer under rate limits
+MAX_RETRIES = 4
+RETRY_BACKOFF_FACTOR = 2
 REQUEST_TIMEOUT = 15
 
 DEFAULT_INTERVAL_HOURS = 4
@@ -109,8 +56,8 @@ STATUS_COLORS = {
     "pushing": "#1f6feb",
     "pending": "#58a6ff",
     "error": "#f85149",
-    "paused": "#8b949e",
 }
 
 GITHUB_TOKEN_ENV = "GITHUB_TOKEN"
+MISTRAL_API_KEY_ENV = "MISTRAL_API_KEY"
 GITHUB_USERNAME_ENV = "GITHUB_USERNAME"
