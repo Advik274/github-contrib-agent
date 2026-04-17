@@ -10,32 +10,31 @@ from .constants import (
     CONFIG_DIR,
     DEFAULT_INTERVAL_HOURS,
     DEFAULT_VETO_SECONDS,
+    DEFAULT_AI_PROVIDER,
     GITHUB_TOKEN_ENV,
     GITHUB_USERNAME_ENV,
     MAX_VETO_SECONDS,
     MIN_VETO_SECONDS,
-    MISTRAL_API_KEY_ENV,
+    AI_PROVIDERS,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class AgentConfig(BaseModel):
-    github_token: str = Field(
-        ..., min_length=1, description="GitHub Personal Access Token"
-    )
-    mistral_api_key: str = Field(..., min_length=1, description="Mistral API Key")
+    github_token: str = Field(..., min_length=1, description="GitHub Personal Access Token")
+    ai_provider: str = Field(default=DEFAULT_AI_PROVIDER, description="AI provider key")
+    ai_api_key: str = Field(..., min_length=1, description="AI Provider API Key")
+    ai_model: str = Field(default="", description="Model override (blank = provider default)")
     github_username: str = Field(..., min_length=1, description="GitHub username")
     interval_hours: int = Field(default=DEFAULT_INTERVAL_HOURS, ge=1, le=168)
-    veto_seconds: int = Field(
-        default=DEFAULT_VETO_SECONDS, ge=MIN_VETO_SECONDS, le=MAX_VETO_SECONDS
-    )
-    max_api_calls: int = Field(default=30, ge=1, le=100)
+    veto_seconds: int = Field(default=DEFAULT_VETO_SECONDS, ge=MIN_VETO_SECONDS, le=MAX_VETO_SECONDS)
+    max_api_calls: int = Field(default=25, ge=1, le=200)
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR)$")
     auto_run_on_startup: bool = Field(default=True)
     show_notifications: bool = Field(default=True)
 
-    @field_validator("github_token", "mistral_api_key", "github_username")
+    @field_validator("github_token", "ai_api_key", "github_username")
     @classmethod
     def strip_whitespace(cls, v: str) -> str:
         return v.strip()
@@ -44,10 +43,23 @@ class AgentConfig(BaseModel):
     @classmethod
     def validate_github_token(cls, v: str) -> str:
         if not v.startswith(("ghp_", "github_pat_")):
-            logger.warning(
-                "GitHub token doesn't look like a standard format (ghp_... or github_pat_...)"
-            )
+            logger.warning("GitHub token doesn't look like a standard format (ghp_... or github_pat_...)")
         return v
+
+    @field_validator("ai_provider")
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        if v not in AI_PROVIDERS:
+            raise ValueError(f"Unknown provider '{v}'. Valid: {list(AI_PROVIDERS.keys())}")
+        return v
+
+    def effective_model(self) -> str:
+        if self.ai_model:
+            return self.ai_model
+        return AI_PROVIDERS[self.ai_provider][2]
+
+    def provider_api_base(self) -> str:
+        return AI_PROVIDERS[self.ai_provider][1]
 
 
 class ConfigManager:

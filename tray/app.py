@@ -17,6 +17,8 @@ from agent.core import ContributionJob, GitHubAgent
 logger = logging.getLogger(__name__)
 
 DEFAULT_VETO_SECONDS = 300
+_MAX_CONSECUTIVE_AI_FAILURES = 3
+_AI_FAILURE_BACKOFF_HOURS = 1
 
 
 def create_tray_icon(color: str = "#2ea44f") -> Image.Image:
@@ -595,10 +597,12 @@ class TrayApp:
         while not self._stop_event.is_set():
             if self._status == "idle":
                 self._run_agent()
+                self._next_run_time = time.time() + interval_seconds
 
-            self._next_run_time = time.time() + interval_seconds
+            remaining = int(self._next_run_time - time.time()) if self._next_run_time else 0
+            sleep_seconds = max(0, min(remaining, interval_seconds))
 
-            for _ in range(int(interval_seconds)):
+            for _ in range(sleep_seconds):
                 if self._stop_event.is_set():
                     break
                 time.sleep(1)
