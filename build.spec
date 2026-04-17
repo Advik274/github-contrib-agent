@@ -1,0 +1,89 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+import os
+import sys
+from pathlib import Path
+
+block_cipher = None
+
+# Get project root
+root = Path(SPECPATH).parent
+
+a = Analysis(
+    ['main.py'],
+    pathex=[str(root)],
+    binaries=[],
+    datas=[
+        ('VERSION', '.'),
+        ('agent/constants.py', 'agent'),
+    ],
+    hiddenimports=[
+        'pystray',
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageDraw',
+        'PIL.ImageFilter',
+        'tkinter',
+        'tkinter.ttk',
+        'tkinter.scrolledtext',
+        'requests',
+        'pydantic',
+        'logging',
+        'json',
+        'base64',
+        'urllib3',
+        'charset_normalizer',
+        'idna',
+        'certifi',
+        'urllib3.util.retry',
+        'urllib3.util',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'matplotlib',
+        'numpy',
+        'scipy',
+        'pandas',
+        'IPython',
+        'notebook',
+        'distutils',
+    ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='github_agent',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon='icon.ico' if Path('icon.ico').exists() else None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='github_agent',
+)

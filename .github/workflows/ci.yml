@@ -1,0 +1,87 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clear pip cache
+        run: pip cache purge
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install mistralai==1.7.0 requests pystray Pillow pytest pytest-cov pytest-mock
+
+      - name: Run tests
+        run: pytest -v --tb=short
+
+  lint:
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clear pip cache
+        run: pip cache purge
+
+      - name: Install linting tools
+        run: pip install --upgrade pip black isort ruff
+
+      - name: Check code formatting (Black)
+        run: black --check --diff .
+
+      - name: Check import sorting (isort)
+        run: isort --check --diff .
+
+      - name: Run Ruff linter
+        run: ruff check .
+
+  build:
+    runs-on: windows-latest
+    needs: [test, lint]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: pip install --upgrade pip build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
