@@ -596,16 +596,20 @@ class TrayApp:
 
         while not self._stop_event.is_set():
             if self._status == "idle":
+                logger.info("Scheduler starting agent run...")
                 self._run_agent()
                 self._next_run_time = time.time() + interval_seconds
+                logger.info(f"Next run scheduled at {time.strftime('%H:%M', time.localtime(self._next_run_time))}")
 
-            remaining = int(self._next_run_time - time.time()) if self._next_run_time else 0
+            remaining = int(self._next_run_time - time.time()) if self._next_run_time else interval_seconds
             sleep_seconds = max(0, min(remaining, interval_seconds))
 
+            logger.info(f"Scheduler sleeping for {sleep_seconds}s ({sleep_seconds/60:.1f}min)...")
             for _ in range(sleep_seconds):
                 if self._stop_event.is_set():
                     break
                 time.sleep(1)
+            logger.info("Scheduler wake up!")
 
     def _menu_run_now(self, icon, item):
         if self._status == "idle":
