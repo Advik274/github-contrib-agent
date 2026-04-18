@@ -6,16 +6,20 @@ import socket
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import requests
+
 try:
     from mistralai import Mistral
 except ImportError:
-    Mistral = None
+    Mistral = None  # type: ignore[assignment]
 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+if TYPE_CHECKING:
+    from mistralai import Mistral
 
 from .config import AgentConfig
 from .constants import (

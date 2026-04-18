@@ -17,7 +17,7 @@ def temp_config_dir(tmp_path):
 def valid_config():
     return {
         "github_token": "ghp_test123456789",
-        "mistral_api_key": "mistral_test_key",
+        "ai_api_key": "mistral_test_key",
         "github_username": "testuser",
         "interval_hours": 4,
         "veto_seconds": 300,
@@ -35,7 +35,7 @@ class TestAgentConfig:
     def test_default_values(self):
         config = AgentConfig(
             github_token="ghp_test",
-            mistral_api_key="mistral_test",
+            ai_api_key="mistral_test",
             github_username="user",
         )
         assert config.interval_hours == 4
@@ -46,7 +46,7 @@ class TestAgentConfig:
     def test_custom_interval(self):
         config = AgentConfig(
             github_token="ghp_test",
-            mistral_api_key="mistral_test",
+            ai_api_key="mistral_test",
             github_username="user",
             interval_hours=8,
         )
@@ -55,7 +55,7 @@ class TestAgentConfig:
     def test_custom_veto_time(self):
         config = AgentConfig(
             github_token="ghp_test",
-            mistral_api_key="mistral_test",
+            ai_api_key="mistral_test",
             github_username="user",
             veto_seconds=600,
         )
@@ -122,12 +122,12 @@ class TestConfigManager:
             config = manager.config
 
             assert config.github_token == "env_ghp_token"
-            assert config.mistral_api_key == "env_mistral_key"
+            assert config.ai_api_key == "env_mistral_key"
 
     def test_missing_required_field(self, temp_config_dir):
         invalid_config = {
             "github_token": "ghp_test",
-            "mistral_api_key": "mistral_test",
+            "ai_api_key": "mistral_test",
         }
 
         with patch("agent.config.CONFIG_DIR", temp_config_dir):

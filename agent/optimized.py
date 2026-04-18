@@ -196,13 +196,9 @@ class HibernatingAgent:
     def __init__(self, config: AgentConfig):
         self.config = config
         self.github_token = config.github_token
-        self.mistral_api_key = config.mistral_api_key
+        self.mistral_api_key = config.ai_api_key
         self.github_username = config.github_username
-        self._max_calls = (
-            config.max_api_calls
-            if hasattr(config, "max_api_calls")
-            else MAX_API_CALLS_PER_RUN
-        )
+        self._max_calls = config.max_api_calls if hasattr(config, "max_api_calls") else MAX_API_CALLS_PER_RUN
 
         self._session: Optional[requests.Session] = None
         self._mistral: Optional[Mistral] = None

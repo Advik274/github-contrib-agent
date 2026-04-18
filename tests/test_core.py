@@ -19,7 +19,7 @@ from agent.core import (
 def mock_config():
     return AgentConfig(
         github_token="ghp_test123",
-        mistral_api_key="mistral_test",
+        ai_api_key="test_api_key",
         github_username="testuser",
         interval_hours=4,
         veto_seconds=300,
