@@ -37,6 +37,7 @@ a = Analysis(
         'certifi',
         'urllib3.util.retry',
         'urllib3.util',
+        'mistralai',
     ],
     hookspath=[],
     hooksconfig={},

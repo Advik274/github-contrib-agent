@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from mistralai import Mistral
+try:
+    from mistralai import Mistral
+except ImportError:
+    Mistral = None
+
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -123,14 +127,10 @@ class GitHubAgent:
     def __init__(self, config: AgentConfig):
         self.config = config
         self.github_token = config.github_token
-        self.mistral_api_key = config.mistral_api_key
+        self.mistral_api_key = config.ai_api_key
         self.github_username = config.github_username
         self._api_calls = 0
-        self._max_calls = (
-            config.max_api_calls
-            if hasattr(config, "max_api_calls")
-            else MAX_API_CALLS_PER_RUN
-        )
+        self._max_calls = config.max_api_calls if hasattr(config, "max_api_calls") else MAX_API_CALLS_PER_RUN
 
         self.session = _make_session(self.github_token, self.github_username)
         self.mistral = Mistral(api_key=self.mistral_api_key)

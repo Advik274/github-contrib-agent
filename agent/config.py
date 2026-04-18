@@ -16,6 +16,7 @@ from .constants import (
     MAX_VETO_SECONDS,
     MIN_VETO_SECONDS,
     AI_PROVIDERS,
+    MISTRAL_API_KEY_ENV,
 )
 
 logger = logging.getLogger(__name__)
