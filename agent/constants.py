@@ -117,3 +117,5 @@ STATUS_COLORS = {
 # ── Environment variables ─────────────────────────────────────────
 GITHUB_TOKEN_ENV = "GITHUB_TOKEN"
 GITHUB_USERNAME_ENV = "GITHUB_USERNAME"
+
+# TODO: Consider adding a constant for the default contribution type priority
